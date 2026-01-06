@@ -1,0 +1,194 @@
+/**
+ * Component: ProjectsForm
+ * 
+ * Fields (Repeatable):
+ * - title (Text, Required)
+ * - description (Textarea)
+ * - skills (Text, Comma separated)
+ * - projectLink (Url)
+ * - role (Text)
+ * - teamSize (Number)
+ * 
+ * Validation:
+ * - title: Required
+ * - projectLink: Valid URL
+ * 
+ * API Contracts:
+ * - GET /api/student/profile/projects
+ * - POST /api/student/profile/projects
+ * - PUT /api/student/profile/projects/:id
+ * - DELETE /api/student/profile/projects/:id
+ */
+
+import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
+import { Field } from "../../ui/field"
+import { useState } from "react"
+import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+
+export const ProjectsForm = ({ data = {}, onUpdate, isEditing = false }) => {
+  const items = Array.isArray(data) ? data : []
+
+  const handleChange = (index, field, value) => {
+    const newItems = [...items]
+    newItems[index] = { ...newItems[index], [field]: value }
+    onUpdate(newItems)
+  }
+
+  const handleAdd = () => {
+    onUpdate([
+      ...items,
+      {
+        title: "",
+        description: "",
+        skills: [], // Changed to array to match mock data
+        projectLink: "", // Changed to match mock data key
+        role: "",
+        teamSize: "",
+      }
+    ])
+  }
+
+  const handleDelete = (index) => {
+    const newItems = items.filter((_, i) => i !== index)
+    onUpdate(newItems)
+  }
+
+  return (
+    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
+      <Heading size="lg" mb={6} color="#20343c">Projects</Heading>
+      
+      <VStack spacing={6} align="stretch">
+        {items.map((item, index) => (
+          <ProjectItem 
+            key={index} 
+            index={index} 
+            item={item} 
+            onChange={handleChange} 
+            onDelete={handleDelete}
+            isEditing={isEditing} 
+          />
+        ))}
+
+        <Button 
+          leftIcon={<FaPlus />} 
+          onClick={handleAdd} 
+          variant="outline" 
+          colorScheme="orange" 
+          borderColor="#d4a960" 
+          color="#d4a960"
+          _hover={{ bg: "#fff5e6" }}
+          isDisabled={!isEditing}
+        >
+          Add Project
+        </Button>
+      </VStack>
+    </Box>
+  )
+}
+
+const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
+  const [isOpen, setIsOpen] = useState(true)
+
+  return (
+    <Card variant="outline" borderColor="gray.200">
+      <CardBody p={4}>
+        <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0}>
+            <HStack onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex={1}>
+                <Text fontWeight="bold" color="gray.700">
+                    {item.title || `Project ${index + 1}`}
+                </Text>
+                {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+            </HStack>
+            <IconButton 
+                size="sm" 
+                variant="ghost" 
+                color="red.500" 
+                aria-label="Delete" 
+                onClick={() => onDelete(index)}
+                isDisabled={!isEditing}
+            >
+                <FaTrash />
+            </IconButton>
+        </Flex>
+
+        <Collapse in={isOpen}>
+            <VStack mt={4} align="stretch" gap={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+                    <Field label="Project Title">
+                        <Input 
+                            value={item.title || ""} 
+                            onChange={(e) => onChange(index, "title", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                    <Field label="Role">
+                        <Input 
+                            value={item.role || ""} 
+                            onChange={(e) => onChange(index, "role", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                    <Field label="Technologies (comma separated)">
+                        <Input 
+                            placeholder="React, Node.js, MongoDB"
+                            value={item.technologies || ""} 
+                            onChange={(e) => onChange(index, "technologies", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                    <Field label="Project Link (GitHub/Live)">
+                        <Input 
+                            value={item.link || ""} 
+                            onChange={(e) => onChange(index, "link", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                    <Field label="Upload Proof (Screenshot/Certificate)">
+                        <Input 
+                            type="file" 
+                            p={1} 
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
+                            variant="flushed" 
+                            isDisabled={!isEditing} 
+                        />
+                        {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
+                    </Field>
+                    <Field label="Start Date">
+                        <Input 
+                            type="date"
+                            value={item.startDate || ""} 
+                            onChange={(e) => onChange(index, "startDate", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                    <Field label="End Date">
+                        <Input 
+                            type="date"
+                            value={item.endDate || ""} 
+                            onChange={(e) => onChange(index, "endDate", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing}
+                        />
+                    </Field>
+                </SimpleGrid>
+                <Field label="Description">
+                    <Textarea 
+                        value={item.description || ""} 
+                        onChange={(e) => onChange(index, "description", e.target.value)} 
+                        variant="flushed"
+                        rows={3}
+                        isDisabled={!isEditing}
+                    />
+                </Field>
+            </VStack>
+        </Collapse>
+      </CardBody>
+    </Card>
+  )
+}
