@@ -126,21 +126,17 @@ const DriveRegistrations = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Mock Import logic
+      // Import logic placeholder
       toast({ 
-        title: "Import Initiated", 
-        description: `Importing from ${file.name}... (This is a mock)`, 
+        title: "Feature Not Implemented", 
+        description: "Bulk import is currently under development.", 
         status: "info",
-        duration: 2000 
+        duration: 3000 
       });
-      // Here you would parse CSV and call API
-      setTimeout(() => {
-          toast({ title: "Import Successful", status: "success" });
-          // Refresh data if needed
-      }, 1000);
+      
+      // Reset input
+      e.target.value = '';
     }
-    // Reset input
-    e.target.value = '';
   };
 
   return (

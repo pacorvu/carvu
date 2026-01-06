@@ -1,179 +1,156 @@
-/**
- * Component: AcademicPerformanceForm
- * 
- * Fields (Repeatable - Semester Wise):
- * - academicYear (Text, e.g., 2023-24)
- * - semester (Select: 1-8)
- * - sgpa (Number)
- * - cgpa (Number)
- * - liveBacklogs (Number)
- * - closedBacklogs (Number)
- * 
- * Validation:
- * - sgpa/cgpa: 0-10 scale
- * - backlogs: Non-negative integer
- * 
- * API Contracts:
- * - GET /api/student/profile/academics
- * - POST /api/student/profile/academics (Add Semester)
- * - PUT /api/student/profile/academics/:id (Update Semester)
- * - DELETE /api/student/profile/academics/:id (Delete Semester)
- */
+import React from "react";
+import {
+  VStack,
+  FormControl,
+  FormLabel,
+  Input,
+  Button,
+  SimpleGrid,
+  Box,
+  Heading,
+  IconButton,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FaPlus, FaTrash } from "react-icons/fa";
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, FormControl, FormLabel } from "@chakra-ui/react"
-import { Field } from "../../ui/field"
-import { useState } from "react"
-import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing }) => {
+  const bg = useColorModeValue("white", "gray.700");
+  const formData = data || {};
 
-export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const items = Array.isArray(data) ? data : []
-
-  const handleChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index] = { ...newItems[index], [field]: value }
-    onUpdate(newItems)
-  }
+  const handleChange = (field, value) => {
+    onUpdate({ ...formData, [field]: value });
+  };
 
   const handleAdd = () => {
-    onUpdate([
-      ...items,
-      {
-        academicYear: "",
-        semester: "",
-        sgpa: "",
-        liveBacklogs: "0",
-        closedBacklogs: "0",
-        resultUploadLink: ""
-      }
-    ])
-  }
+    const newEducation = [
+      ...(formData.education || []),
+      { exam: "", year: "", school: "", board: "", percentage: "" },
+    ];
+    handleChange("education", newEducation);
+  };
 
-  const handleDelete = (index) => {
-    const newItems = items.filter((_, i) => i !== index)
-    onUpdate(newItems)
-  }
+  const handleRemove = (index) => {
+    const newEducation = formData.education.filter((_, i) => i !== index);
+    handleChange("education", newEducation);
+  };
+
+  const handleEducationChange = (index, field, value) => {
+    const newEducation = [...(formData.education || [])];
+    newEducation[index] = { ...newEducation[index], [field]: value };
+    handleChange("education", newEducation);
+  };
 
   return (
-    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
-      <Heading size="lg" mb={6} color="#20343c">Academic Performance</Heading>
-      
-      <VStack spacing={6} align="stretch">
-        {items.map((item, index) => (
-          <AcademicItem 
-            key={index} 
-            index={index} 
-            item={item} 
-            onChange={handleChange} 
-            onDelete={handleDelete}
-            isEditing={isEditing} 
-          />
-        ))}
+    <VStack spacing={6} align="stretch" bg={bg} p={6} borderRadius="lg" boxShadow="sm">
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Heading size="md">Education Details</Heading>
+        {isEditing && (
+          <Button
+            leftIcon={<FaPlus />}
+            onClick={handleAdd}
+            variant="outline"
+            colorScheme="orange"
+            borderColor="#d4a960"
+            color="#d4a960"
+            _hover={{ bg: "#fff5e6" }}
+            isDisabled={!isEditing}
+            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          >
+            Add Education
+          </Button>
+        )}
+      </Box>
 
-        <Button 
-          leftIcon={<FaPlus />} 
-          onClick={handleAdd} 
-          variant="outline" 
-          colorScheme="orange" 
-          borderColor="#d4a960" 
-          color="#d4a960"
-          _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing}
+      {formData.education?.map((edu, index) => (
+        <Box
+          key={index}
+          p={4}
+          borderWidth="1px"
+          borderRadius="md"
+          position="relative"
         >
-          Add Semester
-        </Button>
-      </VStack>
-    </Box>
-  )
-}
-
-const AcademicItem = ({ index, item, onChange, onDelete, isEditing }) => {
-  const [isOpen, setIsOpen] = useState(true)
-
-  return (
-    <Card variant="outline" borderColor="gray.200">
-      <CardBody p={4}>
-        <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0}>
-            <HStack onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex={1}>
-                <Text fontWeight="bold" color="gray.700">
-                    Semester {item.semester || index + 1}
-                </Text>
-                {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-            </HStack>
-            <IconButton 
-                size="sm" 
-                variant="ghost" 
-                color="red.500" 
-                aria-label="Delete" 
-                onClick={() => onDelete(index)}
+          {isEditing && (
+            <IconButton
+              icon={<FaTrash />}
+              position="absolute"
+              top={2}
+              right={2}
+              colorScheme="red"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleRemove(index)}
+              aria-label="Remove education"
+            />
+          )}
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={isEditing ? 6 : 0}>
+            <FormControl>
+              <FormLabel>Exam/Degree</FormLabel>
+              <Input
+                value={edu.exam || ""}
+                onChange={(e) =>
+                  handleEducationChange(index, "exam", e.target.value)
+                }
+                variant="flushed"
                 isDisabled={!isEditing}
-            >
-                <FaTrash />
-            </IconButton>
-        </Flex>
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
 
-        <Collapse in={isOpen}>
-            <VStack mt={4} align="stretch" gap={4}>
-                <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Academic Year">
-                        <Input 
-                            placeholder="e.g. 2023-2024" 
-                            value={item.academicYear || ""} 
-                            onChange={(e) => onChange(index, "academicYear", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Semester">
-                        <Input 
-                            placeholder="e.g. 5" 
-                            value={item.semester || ""} 
-                            onChange={(e) => onChange(index, "semester", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="SGPA">
-                        <Input 
-                            placeholder="e.g. 8.5" 
-                            value={item.sgpa || ""} 
-                            onChange={(e) => onChange(index, "sgpa", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Upload Marksheet">
-                        <Input 
-                            type="file"
-                            p={1}
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => onChange(index, "resultUploadLink", e.target.files[0]?.name)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                         {item.resultUploadLink && <Text fontSize="xs" color="green.500">Uploaded: {item.resultUploadLink}</Text>}
-                    </Field>
-                    <Field label="Live Backlogs">
-                        <Input 
-                            type="number"
-                            value={item.liveBacklogs || "0"} 
-                            onChange={(e) => onChange(index, "liveBacklogs", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Closed Backlogs">
-                        <Input 
-                            type="number"
-                            value={item.closedBacklogs || "0"} 
-                            onChange={(e) => onChange(index, "closedBacklogs", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                </SimpleGrid>
-            </VStack>
-        </Collapse>
-      </CardBody>
-    </Card>
-  )
-}
+            <FormControl>
+              <FormLabel>Year of Passing</FormLabel>
+              <Input
+                type="number"
+                value={edu.year || ""}
+                onChange={(e) =>
+                  handleEducationChange(index, "year", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>School/College</FormLabel>
+              <Input
+                value={edu.school || ""}
+                onChange={(e) =>
+                  handleEducationChange(index, "school", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Board/University</FormLabel>
+              <Input
+                value={edu.board || ""}
+                onChange={(e) =>
+                  handleEducationChange(index, "board", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Percentage/CGPA</FormLabel>
+              <Input
+                value={edu.percentage || ""}
+                onChange={(e) =>
+                  handleEducationChange(index, "percentage", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+          </SimpleGrid>
+        </Box>
+      ))}
+    </VStack>
+  );
+};

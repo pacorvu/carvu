@@ -44,14 +44,18 @@ export const StudentDashboard = () => {
   const location = useLocation()
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const showNotification = location.state?.isFirstLogin || completionPercentage < 100
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const studentUSN = user?.usn;
 
   useEffect(() => {
-    if (!studentUSN) return;
+    if (authLoading) return;
+    if (!studentUSN) {
+        setLoading(false);
+        return;
+    }
     
     const fetchDashboardData = async () => {
       try {
@@ -74,7 +78,17 @@ export const StudentDashboard = () => {
       }
     };
     fetchDashboardData();
-  }, [studentUSN]);
+  }, [studentUSN, authLoading]);
+
+  if (authLoading || (loading && studentUSN)) {
+      return (
+        <StudentProfileLayout>
+           <Box display="flex" justifyContent="center" alignItems="center" minH="50vh">
+             <Spinner size="xl" color="#d4a960" />
+           </Box>
+        </StudentProfileLayout>
+      );
+  }
 
   // Calculate Stats
   const totalApplications = applications.length;

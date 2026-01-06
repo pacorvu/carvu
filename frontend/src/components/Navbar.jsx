@@ -45,7 +45,7 @@ export const Navbar = () => {
             </>
           ) : (
             <>
-              {userRole === "Student" && (
+              {(userRole?.toLowerCase() === "student") && (
                 <>
                   <NavLink to="/student-dashboard">Dashboard</NavLink>
                   <NavLink to="#">Ongoing Drives</NavLink>

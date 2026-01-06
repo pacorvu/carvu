@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const { pool, supabase } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const placementRoutes = require('./routes/placementRoutes');
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -37,6 +38,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use('/student', studentRoutes);
+app.use('/placement', placementRoutes);
 
 // Admin/Dev endpoints (kept for utility)
 app.get('/tables', async (req, res) => {

@@ -42,7 +42,7 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
             <Text fontSize="xs" color="gray.500">{item.instituteName}</Text>
         </VStack>
         <Flex gap={2}>
-            <IconButton icon={<FaTrash />} size="sm" colorScheme="red" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(index); }} aria-label="Delete" isDisabled={!isEditing} />
+            <IconButton icon={<FaTrash />} size="sm" colorScheme="red" variant="ghost" onClick={(e) => { e.stopPropagation(); onDelete(index); }} aria-label="Delete" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             <IconButton icon={isOpen ? <FaChevronUp /> : <FaChevronDown />} size="sm" variant="ghost" aria-label="Toggle" />
         </Flex>
       </Flex>
@@ -51,7 +51,7 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
         <VStack spacing={6} align="stretch" mt={4}>
           <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
             <Field label="Education Level">
-                <Select variant="flushed" isDisabled={!isEditing} value={item.educationLevel || ""} onChange={(e) => handleChange("educationLevel", e.target.value)}>
+                <Select variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} value={item.educationLevel || ""} onChange={(e) => handleChange("educationLevel", e.target.value)}>
                     <option value="">Select Level</option>
                     <option value="10th">10th</option>
                     <option value="12th">12th</option>
@@ -60,28 +60,28 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
                 </Select>
             </Field>
             <Field label="Institute Name">
-                <Input value={item.instituteName || ""} onChange={(e) => handleChange("instituteName", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input value={item.instituteName || ""} onChange={(e) => handleChange("instituteName", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="Board / University">
-                <Input value={item.boardOrUniversity || ""} onChange={(e) => handleChange("boardOrUniversity", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input value={item.boardOrUniversity || ""} onChange={(e) => handleChange("boardOrUniversity", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="City">
-                <Input value={item.city || ""} onChange={(e) => handleChange("city", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input value={item.city || ""} onChange={(e) => handleChange("city", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="Year of Passing">
-                <Input type="number" value={item.yearOfPassing || ""} onChange={(e) => handleChange("yearOfPassing", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input type="number" value={item.yearOfPassing || ""} onChange={(e) => handleChange("yearOfPassing", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="Result Type">
-                <Select variant="flushed" isDisabled={!isEditing} value={item.resultType || ""} onChange={(e) => handleChange("resultType", e.target.value)}>
+                <Select variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} value={item.resultType || ""} onChange={(e) => handleChange("resultType", e.target.value)}>
                     <option value="Percentage">Percentage</option>
                     <option value="CGPA">CGPA</option>
                 </Select>
             </Field>
             <Field label="Result Value">
-                <Input value={item.result || ""} onChange={(e) => handleChange("result", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input value={item.result || ""} onChange={(e) => handleChange("result", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="Subjects">
-                <Input value={item.subjects || ""} onChange={(e) => handleChange("subjects", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                <Input value={item.subjects || ""} onChange={(e) => handleChange("subjects", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
             <Field label="Upload Marksheet/Certificate">
                 <Input 
@@ -90,7 +90,7 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => handleChange("proofFile", e.target.files[0]?.name)} 
                     variant="flushed" 
-                    isDisabled={!isEditing} 
+                    isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                 />
                 {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
             </Field>
@@ -100,13 +100,13 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
             <Heading size="xs" mb={4} color="gray.600">Gap Details (If any)</Heading>
             <SimpleGrid columns={{ base: 1, md: 3 }} gap={6}>
                  <Field label="Gap Type">
-                    <Input value={item.gapType || ""} onChange={(e) => handleChange("gapType", e.target.value)} variant="flushed" placeholder="e.g. Preparation" isDisabled={!isEditing} />
+                    <Input value={item.gapType || ""} onChange={(e) => handleChange("gapType", e.target.value)} variant="flushed" placeholder="e.g. Preparation" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
                 </Field>
                 <Field label="Duration (Months)">
-                    <Input type="number" value={item.gapDurationMonths || ""} onChange={(e) => handleChange("gapDurationMonths", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                    <Input type="number" value={item.gapDurationMonths || ""} onChange={(e) => handleChange("gapDurationMonths", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
                 </Field>
                 <Field label="Reason">
-                    <Input value={item.gapReason || ""} onChange={(e) => handleChange("gapReason", e.target.value)} variant="flushed" isDisabled={!isEditing} />
+                    <Input value={item.gapReason || ""} onChange={(e) => handleChange("gapReason", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
                 </Field>
             </SimpleGrid>
           </Box>
@@ -175,7 +175,7 @@ export const EducationForm = ({ data = {}, onUpdate, isEditing = false }) => {
           borderColor="#d4a960" 
           color="#d4a960"
           _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing}
+          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
         >
           Add Education
         </Button>

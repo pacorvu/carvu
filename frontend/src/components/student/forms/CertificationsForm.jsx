@@ -1,175 +1,170 @@
-/**
- * Component: CertificationsForm
- * 
- * Fields (Repeatable):
- * - name (Text, Required)
- * - issuingOrg (Text)
- * - issueDate (Date)
- * - expiryDate (Date)
- * - credentialUrl (Url)
- * 
- * Validation:
- * - name: Required
- * - credentialUrl: Valid URL
- * 
- * API Contracts:
- * - GET /api/student/profile/certifications
- * - POST /api/student/profile/certifications
- * - PUT /api/student/profile/certifications/:id
- * - DELETE /api/student/profile/certifications/:id
- */
+import React from "react";
+import {
+  VStack,
+  FormControl,
+  FormLabel,
+  Input,
+  Button,
+  SimpleGrid,
+  Box,
+  Heading,
+  IconButton,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FaPlus, FaTrash } from "react-icons/fa";
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex } from "@chakra-ui/react"
-import { Field } from "../../ui/field"
-import { useState } from "react"
-import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
+  const bg = useColorModeValue("white", "gray.700");
+  const formData = data || {};
 
-export const CertificationsForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const items = Array.isArray(data) ? data : []
-
-  const handleChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index] = { ...newItems[index], [field]: value }
-    onUpdate(newItems)
-  }
+  const handleChange = (field, value) => {
+    onUpdate({ ...formData, [field]: value });
+  };
 
   const handleAdd = () => {
-    onUpdate([
-      ...items,
-      {
-        title: "",
-        issuingOrganization: "",
-        issueDate: "",
-        expiryDate: "",
-        credentialID: "",
-        certificateLink: ""
-      }
-    ])
-  }
+    const newCertifications = [
+      ...(formData.certifications || []),
+      { name: "", organization: "", issueDate: "", expiryDate: "", credentialId: "", credentialUrl: "" },
+    ];
+    handleChange("certifications", newCertifications);
+  };
 
-  const handleDelete = (index) => {
-    const newItems = items.filter((_, i) => i !== index)
-    onUpdate(newItems)
-  }
+  const handleRemove = (index) => {
+    const newCertifications = formData.certifications.filter((_, i) => i !== index);
+    handleChange("certifications", newCertifications);
+  };
+
+  const handleCertificationChange = (index, field, value) => {
+    const newCertifications = [...(formData.certifications || [])];
+    newCertifications[index] = { ...newCertifications[index], [field]: value };
+    handleChange("certifications", newCertifications);
+  };
 
   return (
-    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
-      <Heading size="lg" mb={6} color="#20343c">Certifications</Heading>
-      
-      <VStack spacing={6} align="stretch">
-        {items.map((item, index) => (
-          <CertificationItem 
-            key={index} 
-            index={index} 
-            item={item} 
-            onChange={handleChange} 
-            onDelete={handleDelete}
-            isEditing={isEditing} 
-          />
-        ))}
+    <VStack spacing={6} align="stretch" bg={bg} p={6} borderRadius="lg" boxShadow="sm">
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Heading size="md">Certifications</Heading>
+        {isEditing && (
+          <Button
+            leftIcon={<FaPlus />}
+            onClick={handleAdd}
+            variant="outline"
+            colorScheme="orange"
+            borderColor="#d4a960"
+            color="#d4a960"
+            _hover={{ bg: "#fff5e6" }}
+            isDisabled={!isEditing}
+            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          >
+            Add Certification
+          </Button>
+        )}
+      </Box>
 
-        <Button 
-          leftIcon={<FaPlus />} 
-          onClick={handleAdd} 
-          variant="outline" 
-          colorScheme="orange" 
-          borderColor="#d4a960" 
-          color="#d4a960"
-          _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing}
+      {formData.certifications?.map((cert, index) => (
+        <Box
+          key={index}
+          p={4}
+          borderWidth="1px"
+          borderRadius="md"
+          position="relative"
         >
-          Add Certification
-        </Button>
-      </VStack>
-    </Box>
-  )
-}
-
-const CertificationItem = ({ index, item, onChange, onDelete, isEditing }) => {
-  const [isOpen, setIsOpen] = useState(true)
-
-  return (
-    <Card variant="outline" borderColor="gray.200">
-      <CardBody p={4}>
-        <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0}>
-            <HStack onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex={1}>
-                <Text fontWeight="bold" color="gray.700">
-                    {item.title || `Certification ${index + 1}`}
-                </Text>
-                {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-            </HStack>
-            <IconButton 
-                size="sm" 
-                variant="ghost" 
-                color="red.500" 
-                aria-label="Delete" 
-                onClick={() => onDelete(index)}
+          {isEditing && (
+            <IconButton
+              icon={<FaTrash />}
+              position="absolute"
+              top={2}
+              right={2}
+              colorScheme="red"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleRemove(index)}
+              aria-label="Remove certification"
+            />
+          )}
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={isEditing ? 6 : 0}>
+            <FormControl>
+              <FormLabel>Certification Name</FormLabel>
+              <Input
+                value={cert.name || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "name", e.target.value)
+                }
+                variant="flushed"
                 isDisabled={!isEditing}
-            >
-                <FaTrash />
-            </IconButton>
-        </Flex>
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
 
-        <Collapse in={isOpen}>
-            <VStack mt={4} align="stretch" gap={4}>
-                <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Certification Title">
-                        <Input 
-                            value={item.title || ""} 
-                            onChange={(e) => onChange(index, "title", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Issuing Organization">
-                        <Input 
-                            value={item.issuingOrganization || ""} 
-                            onChange={(e) => onChange(index, "issuingOrganization", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Issue Date">
-                        <Input 
-                            type="date"
-                            value={item.issueDate || ""} 
-                            onChange={(e) => onChange(index, "issueDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Expiry Date (if any)">
-                        <Input 
-                            type="date"
-                            value={item.expiryDate || ""} 
-                            onChange={(e) => onChange(index, "expiryDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Credential ID">
-                        <Input 
-                            value={item.credentialID || ""} 
-                            onChange={(e) => onChange(index, "credentialID", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                    </Field>
-                    <Field label="Upload Certificate">
-                        <Input 
-                            type="file"
-                            p={1}
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => onChange(index, "certificateLink", e.target.files[0]?.name)} 
-                            variant="flushed"
-                            isDisabled={!isEditing}
-                        />
-                        {item.certificateLink && <Text fontSize="xs" color="green.500">Uploaded: {item.certificateLink}</Text>}
-                    </Field>
-                </SimpleGrid>
-            </VStack>
-        </Collapse>
-      </CardBody>
-    </Card>
-  )
-}
+            <FormControl>
+              <FormLabel>Issuing Organization</FormLabel>
+              <Input
+                value={cert.organization || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "organization", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Issue Date</FormLabel>
+              <Input
+                type="date"
+                value={cert.issueDate || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "issueDate", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Expiry Date</FormLabel>
+              <Input
+                type="date"
+                value={cert.expiryDate || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "expiryDate", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Credential ID</FormLabel>
+              <Input
+                value={cert.credentialId || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "credentialId", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Credential URL</FormLabel>
+              <Input
+                value={cert.credentialUrl || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "credentialUrl", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+          </SimpleGrid>
+        </Box>
+      ))}
+    </VStack>
+  );
+};

@@ -1,81 +1,70 @@
-/**
- * Component: CareerOverviewForm
- * 
- * Fields:
- * - briefSummary (Textarea)
- * - keyExpertise (Text)
- * - careerObjective (Textarea)
- * - hobbiesInterests (Text)
- * - dreamCompany (Text)
- * - dreamPackage (Number)
- * 
- * Validation:
- * - briefSummary: Max 500 chars
- * - dreamPackage: Positive number
- * 
- * API Contracts:
- * - GET /api/student/profile/career
- * - POST/PUT /api/student/profile/career
- *   Body: { briefSummary, keyExpertise, careerObjective, dreamCompany, ... }
- */
+import React from "react";
+import {
+  VStack,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  useColorModeValue,
+} from "@chakra-ui/react";
 
-import { Box, SimpleGrid, Input, Textarea, VStack, Heading, Flex } from "@chakra-ui/react"
-import { Field } from "../../ui/field"
-import { FaBriefcase, FaStar } from "react-icons/fa"
-
-const SectionHeader = ({ title, icon: Icon }) => (
-  <Flex align="center" gap={3} mb={6} borderBottom="1px solid" borderColor="gray.200" pb={2}>
-    <Box p={2} bg="orange.50" borderRadius="md" color="#d4a960">
-      <Icon size={18} />
-    </Box>
-    <Heading size="md" color="#20343c" fontWeight="bold">
-      {title}
-    </Heading>
-  </Flex>
-)
-
-export const CareerOverviewForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const formData = data || {}
+export const CareerOverviewForm = ({ data = {}, onUpdate, isEditing }) => {
+  const bg = useColorModeValue("white", "gray.700");
+  const formData = data || {};
 
   const handleChange = (field, value) => {
-    onUpdate({ ...formData, [field]: value })
-  }
+    onUpdate({ ...formData, [field]: value });
+  };
 
   return (
-    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
-      <VStack spacing={8} align="stretch" gap={8}>
-        
-        <Box>
-          <SectionHeader title="Career Objectives" icon={FaBriefcase} />
-          <VStack gap={6}>
-            <Field label="Brief Profile Summary">
-                <Textarea value={formData.briefSummary || ""} onChange={(e) => handleChange("briefSummary", e.target.value)} variant="flushed" minH="100px" isDisabled={!isEditing} />
-            </Field>
-            <Field label="Key Expertise (Comma separated)">
-                <Input value={formData.keyExpertise || ""} onChange={(e) => handleChange("keyExpertise", e.target.value)} variant="flushed" placeholder="e.g. React, Node.js, Python" isDisabled={!isEditing} />
-            </Field>
-            <Field label="Career Objective">
-                <Textarea value={formData.careerObjective || ""} onChange={(e) => handleChange("careerObjective", e.target.value)} variant="flushed" minH="100px" isDisabled={!isEditing} />
-            </Field>
-            <Field label="Hobbies & Interests">
-                <Input value={formData.hobbiesInterests || ""} onChange={(e) => handleChange("hobbiesInterests", e.target.value)} variant="flushed" isDisabled={!isEditing} />
-            </Field>
-          </VStack>
-        </Box>
+    <VStack spacing={6} align="stretch" bg={bg} p={6} borderRadius="lg" boxShadow="sm">
+      <FormControl>
+        <FormLabel>Brief Summary</FormLabel>
+        <Textarea
+          value={formData.briefSummary || ""}
+          onChange={(e) => handleChange("briefSummary", e.target.value)}
+          variant="flushed"
+          minH="100px"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+        />
+      </FormControl>
 
-        <Box>
-          <SectionHeader title="Aspirations" icon={FaStar} />
-          <SimpleGrid columns={{ base: 1, md: 2 }} gap={8}>
-            <Field label="Dream Company">
-                <Input value={formData.dreamCompany || ""} onChange={(e) => handleChange("dreamCompany", e.target.value)} variant="flushed" isDisabled={!isEditing} />
-            </Field>
-            <Field label="Expected / Dream Package (LPA)">
-                <Input value={formData.dreamPackage || ""} onChange={(e) => handleChange("dreamPackage", e.target.value)} variant="flushed" type="number" isDisabled={!isEditing} />
-            </Field>
-          </SimpleGrid>
-        </Box>
+      <FormControl>
+        <FormLabel>Career Objective</FormLabel>
+        <Textarea
+          value={formData.careerObjective || ""}
+          onChange={(e) => handleChange("careerObjective", e.target.value)}
+          variant="flushed"
+          minH="100px"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+        />
+      </FormControl>
 
-      </VStack>
-    </Box>
-  )
-}
+      <FormControl>
+        <FormLabel>Future Goals</FormLabel>
+        <Textarea
+          value={formData.futureGoals || ""}
+          onChange={(e) => handleChange("futureGoals", e.target.value)}
+          variant="flushed"
+          minH="100px"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+        />
+      </FormControl>
+
+      <FormControl>
+        <FormLabel>Dream Companies</FormLabel>
+        <Input
+          value={formData.dreamCompanies || ""}
+          onChange={(e) => handleChange("dreamCompanies", e.target.value)}
+          variant="flushed"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          placeholder="Comma separated values"
+        />
+      </FormControl>
+    </VStack>
+  );
+};

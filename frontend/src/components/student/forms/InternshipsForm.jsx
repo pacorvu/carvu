@@ -79,7 +79,7 @@ export const InternshipsForm = ({ data = {}, onUpdate, isEditing = false }) => {
           borderColor="#d4a960" 
           color="#d4a960"
           _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing}
+          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
         >
           Add Internship
         </Button>
@@ -107,7 +107,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                 color="red.500" 
                 aria-label="Delete" 
                 onClick={() => onDelete(index)}
-                isDisabled={!isEditing}
+                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
             >
                 <FaTrash />
             </IconButton>
@@ -121,7 +121,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.companyName || ""} 
                             onChange={(e) => onChange(index, "companyName", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Role">
@@ -129,7 +129,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.role || ""} 
                             onChange={(e) => onChange(index, "role", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Location">
@@ -137,7 +137,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.location || ""} 
                             onChange={(e) => onChange(index, "location", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Upload Certificate">
@@ -147,7 +147,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => onChange(index, "certificateLink", e.target.files[0]?.name)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                         {item.certificateLink && <Text fontSize="xs" color="green.500">Uploaded: {item.certificateLink}</Text>}
                     </Field>
@@ -157,7 +157,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.startDate || ""} 
                             onChange={(e) => onChange(index, "startDate", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="End Date">
@@ -166,7 +166,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.endDate || ""} 
                             onChange={(e) => onChange(index, "endDate", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                 </SimpleGrid>
@@ -176,7 +176,7 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                         onChange={(e) => onChange(index, "description", e.target.value)} 
                         variant="flushed"
                         rows={3}
-                        isDisabled={!isEditing}
+                        isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                     />
                 </Field>
             </VStack>

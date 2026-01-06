@@ -74,7 +74,7 @@ export const ExtraCurricularForm = ({ data = {}, onUpdate, isEditing = false }) 
           borderColor="#d4a960" 
           color="#d4a960"
           _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing}
+          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
         >
           Add Activity
         </Button>
@@ -102,7 +102,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                 color="red.500" 
                 aria-label="Delete" 
                 onClick={() => onDelete(index)}
-                isDisabled={!isEditing}
+                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
             >
                 <FaTrash />
             </IconButton>
@@ -116,7 +116,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             value={item.activityName || ""} 
                             onChange={(e) => onChange(index, "activityName", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Role">
@@ -124,7 +124,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             value={item.role || ""} 
                             onChange={(e) => onChange(index, "role", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Achievement / Description">
@@ -132,7 +132,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             value={item.achievement || ""} 
                             onChange={(e) => onChange(index, "achievement", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Date">
@@ -141,7 +141,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             value={item.date || ""} 
                             onChange={(e) => onChange(index, "date", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing}
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Upload Certificate/Proof">
@@ -151,7 +151,7 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
                             variant="flushed" 
-                            isDisabled={!isEditing} 
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                         />
                         {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
                     </Field>

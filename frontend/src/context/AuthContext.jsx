@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { setAccessToken } from '../services/tokenService';
+import { decodeJwt } from '../utils/jwt';
 
 const AuthContext = createContext(undefined);
 
@@ -12,9 +13,29 @@ export const AuthProvider = ({ children }) => {
   const handleToken = (token) => {
     setAccessToken(token);
     const payload = decodeJwt(token);
+    
+    let role = payload?.role_name;
+    if (!role && payload?.role_id) {
+      // Map role_id to role_name
+      switch(Number(payload.role_id)) {
+        case 1: role = 'superadmin'; break;
+        case 2: role = 'student'; break;
+        case 3: // placement_director
+        case 4: // placement_officers
+        case 8: // admin_viewer
+          role = 'admin'; break;
+        case 5: role = 'alumni'; break;
+        case 6: role = 'management'; break;
+        case 7: role = 'parent'; break;
+        case 9: role = 'company'; break;
+        case 12: role = 'dean'; break;
+        default: role = 'student';
+      }
+    }
+
     const u = {
       id: payload?.sub,
-      role: payload?.role_name || payload?.role_id || 'student',
+      role: role || 'student',
       token_version: payload?.token_version || 0,
       usn: payload?.usn
     };
@@ -119,14 +140,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-function decodeJwt(token) {
-  try {
-    const parts = token.split('.');
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(base64);
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}

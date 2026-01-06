@@ -137,7 +137,10 @@ const login = async (req, res) => {
 const refresh = async (req, res) => {
   try {
     const raw = req.cookies?.refresh_token;
-    if (!raw) return res.status(401).json({ error: 'no refresh' });
+    if (!raw) {
+      console.log('Refresh failed: No refresh token in cookies', req.cookies);
+      return res.status(401).json({ error: 'no refresh' });
+    }
     const hash = sha256(raw);
     const loginTable = await getLoginTable();
     // Use explicit aliasing to avoid ID collision between token ID (uuid) and user ID (bigint)
@@ -149,7 +152,10 @@ const refresh = async (req, res) => {
        limit 1`,
       [hash]
     );
-    if (!q.rows.length) return res.status(401).json({ error: 'invalid refresh' });
+    if (!q.rows.length) {
+      console.log('Refresh failed: Token not found or invalid/expired', { hash });
+      return res.status(401).json({ error: 'invalid refresh' });
+    }
     const row = q.rows[0];
     
     // row contains user details for signAccess (it expects .id to be user id usually, but let's check signAccess)
@@ -185,6 +191,64 @@ const logout = async (req, res) => {
   res.json({ ok: true });
 };
 
+const verifyUsn = async (req, res) => {
+  console.log('verifyUsn called with body:', req.body);
+  try {
+    const { usn } = req.body;
+    if (!usn) {
+        console.log('verifyUsn: No USN provided');
+        return res.status(400).json({ error: 'USN required' });
+    }
+
+    console.log('verifyUsn: Getting login table');
+    const loginTable = await getLoginTable();
+    console.log(`verifyUsn: Using login table ${loginTable}`);
+    
+    console.log(`verifyUsn: Querying ${loginTable} for USN ${usn}`);
+    const userRes = await pool.query(`select * from ${loginTable} where usn=$1`, [usn]);
+    console.log(`verifyUsn: Found ${userRes.rows.length} rows`);
+
+    if (!userRes.rows.length) {
+      console.log('verifyUsn: USN not found');
+      return res.status(404).json({ error: 'USN not found in database. Please contact administration.' });
+    }
+
+    const user = userRes.rows[0];
+    
+    // Check if already registered (has password)
+    const isRegistered = !!user.password_hash;
+    console.log(`verifyUsn: User registered status: ${isRegistered}`);
+    
+    // Try to get name from personal details
+    let name = '';
+    try {
+       console.log('verifyUsn: Querying personal details');
+       const personalRes = await pool.query('select full_name from students_personal_details where usn=$1', [usn]);
+       if (personalRes.rows.length) {
+           name = personalRes.rows[0].full_name;
+           console.log(`verifyUsn: Found name: ${name}`);
+       } else {
+           console.log('verifyUsn: No name found in personal details');
+       }
+    } catch (e) {
+       console.error('verifyUsn: Error fetching personal details (non-fatal):', e.message);
+       // ignore
+    }
+
+    const responseData = {
+      exists: true,
+      email: user.rvu_email || user.email || user.personal_email,
+      name: name,
+      isRegistered
+    };
+    console.log('verifyUsn: Sending response:', responseData);
+    res.json(responseData);
+  } catch (e) {
+    console.error(`Verify USN error: ${e.message}`, e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
 // Initialize
 ensureAuthTables();
 
@@ -192,5 +256,6 @@ module.exports = {
   login,
   refresh,
   logout,
+  verifyUsn,
   getLoginTable
 };

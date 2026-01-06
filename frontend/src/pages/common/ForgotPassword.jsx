@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -14,6 +14,7 @@ import {
 import { Field } from '../../components/ui/field';
 import PixelCard from '../../components/PixelCard';
 import { FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1);
@@ -25,6 +26,39 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      switch (user.role?.toLowerCase()) {
+        case 'student':
+          navigate("/student-dashboard", { replace: true });
+          break;
+        case 'admin':
+        case 'superadmin':
+          navigate("/placement/dashboard", { replace: true });
+          break;
+        case 'alumni':
+          navigate("/placement/alumni-dashboard", { replace: true });
+          break;
+        case 'dean':
+          navigate("/dean/dashboard", { replace: true });
+          break;
+        case 'company':
+          navigate("/company/dashboard", { replace: true });
+          break;
+        case 'parent':
+          navigate("/parent/dashboard", { replace: true });
+          break;
+        case 'management':
+          navigate("/management/dashboard", { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const validateEmail = () => {
     const errors = {};
@@ -148,7 +182,7 @@ const ForgotPassword = () => {
   // Render Helpers
   const renderStep1 = () => (
     <Stack gap={4}>
-      <Field label="Email Address" invalid={!!fieldErrors.email} errorText={fieldErrors.email}>
+      <Field label="Email Address" errorText={fieldErrors.email}>
         <Input
           placeholder="Enter your email"
           value={email}
@@ -224,7 +258,7 @@ const ForgotPassword = () => {
 
   const renderStep3 = () => (
     <Stack gap={4}>
-      <Field label="New Password" invalid={!!fieldErrors.newPassword} errorText={fieldErrors.newPassword}>
+      <Field label="New Password" errorText={fieldErrors.newPassword}>
         <Input
           type="password"
           placeholder="Enter new password"

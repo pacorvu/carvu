@@ -54,7 +54,7 @@ export const PreviewProfile = () => {
     window.print()
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minH="80vh">
         <Spinner size="xl" />

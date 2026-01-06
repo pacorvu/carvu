@@ -148,27 +148,8 @@ const CalendarOfEvents = () => {
         notification_remarks: drive.placement_status
       }));
 
-      // 2. Mock Alumni Events
-      const alumniEvents = [
-        {
-          id: 'AL001',
-          title: 'Alumni Meet 2026',
-          description: 'Annual Alumni Meetup',
-          event_date: '2026-02-15T10:00:00Z',
-          start_time: '10:00',
-          type: 'Alumni',
-          notification_remarks: 'Virtual'
-        },
-        {
-          id: 'AL002',
-          title: 'Guest Lecture: John Doe',
-          description: 'Lecture by Google Engineer',
-          event_date: '2026-01-20T14:00:00Z',
-          start_time: '14:00',
-          type: 'Alumni',
-          notification_remarks: 'SoCSE Auditorium'
-        }
-      ];
+      // 2. Mock Alumni Events - REMOVED
+      const alumniEvents = [];
 
       // 3. Local manual events (if any)
       // For now, we just combine placement and mock alumni events

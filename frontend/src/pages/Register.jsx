@@ -1,25 +1,16 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Box, Container, VStack, Heading, Input, Button, Text, 
   Flex, SimpleGrid, Textarea
 } from "@chakra-ui/react"
-import { Link as RouterLink } from "react-router-dom"
+import { Link as RouterLink, useNavigate } from "react-router-dom"
 import { 
   FaArrowLeft, FaArrowRight, FaCheck, 
   FaUserGraduate, FaBuilding, FaUserTie, FaChalkboardTeacher
 } from "react-icons/fa"
 import { Field } from "../components/ui/field"
 import { RoleCard } from "../components/RoleCard"
-
-// Mock Database
-const VALID_STUDENTS = {
-  "1MS21CS001": { name: "John Doe", email: "john.doe@gmail.com" },
-  "1MS21CS002": { name: "Jane Smith", email: "jane.smith@yahoo.com" },
-  "1MS21CS003": { name: "Alice Johnson", email: "alice.j@outlook.com" },
-  "1MS21CS004": { name: "Bob Wilson", email: "bob.w@gmail.com" },
-  "RVU21CS001": { name: "Shreyas V", email: "shreyas.v@rvu.edu.in" },
-  "RVU21CS002": { name: "Student User", email: "student.user@rvu.edu.in" }
-}
+import { useAuth } from "../context/AuthContext"
 
 // Helper Icon component wrapper
 const Icon = ({ as, ...props }) => <Box as={as} {...props} />
@@ -65,6 +56,7 @@ const StudentRegister = () => {
   const [otpSent, setOtpSent] = useState(false)
   const [otp, setOtp] = useState("")
   const [maskedEmail, setMaskedEmail] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -75,20 +67,51 @@ const StudentRegister = () => {
     }
   }
 
-  const handleVerifyUsn = () => {
-    const student = VALID_STUDENTS[formData.usn.toUpperCase()]
-    if (student) {
-      setFormData({ ...formData, name: student.name, email: student.email })
-      // Mask email for display
-      const [local, domain] = student.email.split('@')
-      const masked = `${local[0]}***${local[local.length-1]}@${domain}`
-      setMaskedEmail(masked)
-      
-      setIsUsnVerified(true)
-      setError("")
-    } else {
-      setError("USN not found in database. Please contact administration.")
-      setIsUsnVerified(false)
+  const handleVerifyUsn = async () => {
+    if (!formData.usn) {
+      setError("Please enter a USN");
+      return;
+    }
+    
+    setLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/verify-usn`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usn: formData.usn.toUpperCase() })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.isRegistered) {
+           setError("Student already registered. Please login.");
+           setIsUsnVerified(false);
+        } else {
+           setFormData({ ...formData, name: data.name || "", email: data.email });
+           
+           // Mask email for display
+           if (data.email) {
+               const [local, domain] = data.email.split('@');
+               const masked = `${local[0]}***${local[local.length-1]}@${domain}`;
+               setMaskedEmail(masked);
+           } else {
+               setMaskedEmail("Email not found");
+           }
+           
+           setIsUsnVerified(true);
+        }
+      } else {
+        setError(data.error || "USN not found in database. Please contact administration.");
+        setIsUsnVerified(false);
+      }
+    } catch (e) {
+      setError("Connection error. Please try again.");
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -138,7 +161,7 @@ const StudentRegister = () => {
       <Heading size="md" color="#20343c">Step 1: Student Verification</Heading>
       <Text color="gray.600">Please enter your University Serial Number (USN) to verify your identity.</Text>
       
-      <Field label="USN" invalid={!!error && !isUsnVerified} errorText={error}>
+      <Field label="USN" errorText={!isUsnVerified ? error : null}>
         <Input 
           name="usn" 
           placeholder="e.g., 1MS21CS001" 
@@ -178,7 +201,7 @@ const StudentRegister = () => {
                         OTP sent successfully
                     </Text>
                     
-                    <Field label="Enter OTP" invalid={!!error} errorText={error}>
+                    <Field label="Enter OTP" errorText={error}>
                         <Input 
                             placeholder="Enter 6-digit OTP" 
                             value={otp} 
@@ -205,7 +228,15 @@ const StudentRegister = () => {
       )}
 
       {!isUsnVerified && (
-        <Button bg="#20343c" color="white" width="full" _hover={{ bg: "#1a2b32" }} onClick={handleVerifyUsn}>
+        <Button 
+            bg="#20343c" 
+            color="white" 
+            width="full" 
+            _hover={{ bg: "#1a2b32" }} 
+            onClick={handleVerifyUsn}
+            isLoading={loading}
+            loadingText="Verifying..."
+        >
             Get Details <Icon as={FaArrowRight} ml={2} />
         </Button>
       )}
@@ -344,11 +375,11 @@ const StudentRegister = () => {
     <VStack gap={6} align="stretch">
       <Heading size="md" color="#20343c">Step 5: Set Password</Heading>
       
-      <Field label="Password" invalid={!!error && error.includes("Password")} errorText={error}>
+      <Field label="Password" errorText={error && error.includes("Password") ? error : null}>
         <Input type="password" name="password" value={formData.password} onChange={handleChange} {...inputStyle} color="gray.700" />
       </Field>
       
-      <Field label="Confirm Password" invalid={!!error && error.includes("Password")}>
+      <Field label="Confirm Password" errorText={error && error.includes("Password") ? error : null}>
         <Input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} {...inputStyle} color="gray.700" />
       </Field>
 
@@ -757,6 +788,39 @@ const VerifierRegister = () => (
 
 export const Register = () => {
   const [role, setRole] = useState(null)
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      switch (user.role?.toLowerCase()) {
+        case 'student':
+          navigate("/student-dashboard", { replace: true });
+          break;
+        case 'admin':
+        case 'superadmin':
+          navigate("/placement/dashboard", { replace: true });
+          break;
+        case 'alumni':
+          navigate("/placement/alumni-dashboard", { replace: true });
+          break;
+        case 'dean':
+          navigate("/dean/dashboard", { replace: true });
+          break;
+        case 'company':
+          navigate("/company/dashboard", { replace: true });
+          break;
+        case 'parent':
+          navigate("/parent/dashboard", { replace: true });
+          break;
+        case 'management':
+          navigate("/management/dashboard", { replace: true });
+          break;
+        default:
+          break;
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   return (
     <Box py={10} bg="gray.50" minH="90vh" display="flex" alignItems="center" justifyContent="center">

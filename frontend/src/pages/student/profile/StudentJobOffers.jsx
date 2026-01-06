@@ -8,15 +8,18 @@ import { useAuth } from "../../../context/AuthContext"
 export const StudentJobOffers = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const studentUSN = user?.usn; 
 
   useEffect(() => {
+    if (authLoading) return;
     if (studentUSN) {
       loadOffers();
+    } else {
+      setLoading(false);
     }
-  }, [studentUSN]);
+  }, [studentUSN, authLoading]);
 
   const loadOffers = async () => {
     try {
@@ -29,6 +32,16 @@ export const StudentJobOffers = () => {
       setLoading(false);
     }
   };
+
+  if (authLoading || (loading && studentUSN)) {
+      return (
+        <StudentProfileLayout>
+           <Box display="flex" justifyContent="center" alignItems="center" minH="50vh">
+             <Spinner size="xl" color="#d4a960" />
+           </Box>
+        </StudentProfileLayout>
+      );
+  }
 
   const getStatusConfig = (status) => {
     switch (status) {

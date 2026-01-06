@@ -77,6 +77,9 @@ export const EditProfile = () => {
   const currentSectionKey = getSectionKey(section)
 
   useEffect(() => {
+    // Reset editing state when switching sections
+    setIsEditing(false)
+
     // If no section provided, redirect to personal
     if (!section) {
         navigate('/student/profile/personal')
@@ -130,7 +133,7 @@ export const EditProfile = () => {
   }
 
   const renderContent = () => {
-      if (loading) {
+      if (loading || !data) {
           return (
               <Center h="50vh">
                   <Spinner size="xl" color="#d4a960" />

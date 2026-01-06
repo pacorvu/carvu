@@ -91,7 +91,11 @@ const router = createBrowserRouter(
       </Route>
 
       {/* Student Routes without Top Navbar */}
-      <Route element={<StudentLayoutWrapper />}>
+      <Route element={
+        <PlacementProtectedRoute requiredRole="student">
+          <StudentLayoutWrapper />
+        </PlacementProtectedRoute>
+      }>
         <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/student/profile" element={<EditProfile />} />
         <Route path="/student/profile/:section" element={<EditProfile />} />

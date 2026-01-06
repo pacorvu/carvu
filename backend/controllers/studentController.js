@@ -43,7 +43,9 @@ const columnMapping = {
       programId: 'program_id',
       specializationId: 'specialization_id',
       majorId: 'major_id',
-      minorId: 'minor_id'
+      minorId: 'minor_id',
+      gender: 'gender',
+      languages: 'languages'
     },
     fromDb: {
       full_name: 'fullName',
@@ -57,7 +59,9 @@ const columnMapping = {
       program_id: 'programId',
       specialization_id: 'specializationId',
       major_id: 'majorId',
-      minor_id: 'minorId'
+      minor_id: 'minorId',
+      gender: 'gender',
+      languages: 'languages'
     }
   },
   contact: {
@@ -80,12 +84,20 @@ const columnMapping = {
     toDb: {
       parentType: 'parent_type',
       phoneCountryCode: 'phone_country_code',
-      phoneNumber: 'phone_number'
+      phoneNumber: 'phone_number',
+      name: 'name',
+      occupation: 'occupation',
+      organisation: 'organisation',
+      email: 'email'
     },
     fromDb: {
       parent_type: 'parentType',
       phone_country_code: 'phoneCountryCode',
-      phone_number: 'phoneNumber'
+      phone_number: 'phoneNumber',
+      name: 'name',
+      occupation: 'occupation',
+      organisation: 'organisation',
+      email: 'email'
     }
   },
   career: {
@@ -113,52 +125,70 @@ const columnMapping = {
       yearOfPassing: 'year_of_passing',
       resultType: 'result_type',
       marksheetFile: 'marksheet_file',
+      proofFile: 'marksheet_file', // Allow proofFile from frontend
       gapType: 'gap_type',
       gapDurationMonths: 'gap_duration_months',
-      gapReason: 'gap_reason'
+      gapReason: 'gap_reason',
+      result: 'result',
+      boardOrUniversity: 'board', // Map frontend boardOrUniversity to DB board
+      board: 'board', // Keep board if sent directly
+      subjects: 'subjects',
+      city: 'city'
     },
     fromDb: {
       education_level: 'educationLevel',
       institute_name: 'instituteName',
       year_of_passing: 'yearOfPassing',
       result_type: 'resultType',
-      marksheet_file: 'marksheetFile',
+      marksheet_file: 'proofFile', // Return as proofFile for frontend consistency
       gap_type: 'gapType',
       gap_duration_months: 'gapDurationMonths',
-      gap_reason: 'gapReason'
+      gap_reason: 'gapReason',
+      result: 'result',
+      board: 'boardOrUniversity', // Return as boardOrUniversity
+      subjects: 'subjects',
+      city: 'city'
     }
   },
   academics: {
     toDb: {
       academicYear: 'academic_year',
       resultInSgpa: 'result_in_sgpa',
+      sgpa: 'result_in_sgpa', // Map frontend sgpa to DB result_in_sgpa
       closedBacklogs: 'closed_backlogs',
       liveBacklogs: 'live_backlogs',
-      provisionalResultUploadLink: 'provisional_result_upload_link'
+      provisionalResultUploadLink: 'provisional_result_upload_link',
+      resultUploadLink: 'provisional_result_upload_link', // Map frontend resultUploadLink
+      semester: 'semester'
     },
     fromDb: {
       academic_year: 'academicYear',
-      result_in_sgpa: 'resultInSgpa',
+      result_in_sgpa: 'sgpa', // Return as sgpa
       closed_backlogs: 'closedBacklogs',
       live_backlogs: 'liveBacklogs',
-      provisional_result_upload_link: 'provisionalResultUploadLink'
+      provisional_result_upload_link: 'resultUploadLink', // Return as resultUploadLink
+      semester: 'semester'
     }
   },
   projects: {
     toDb: {
+      title: 'title',
       projectLink: 'project_link',
       link: 'project_link',
       technologies: 'skills',
       skills: 'skills',
       proofFile: 'snaps',
       snaps: 'snaps',
-      mentorName: 'mentor_name'
+      mentorName: 'mentor_name',
+      description: 'description'
     },
     fromDb: {
+      title: 'title',
       project_link: 'projectLink',
-      skills: 'technologies',
+      skills: 'skills', // Changed from technologies to match other sections
       snaps: 'proofFile',
-      mentor_name: 'mentorName'
+      mentor_name: 'mentorName',
+      description: 'description'
     }
   },
   internships: {
@@ -175,7 +205,9 @@ const columnMapping = {
       stipend: 'stipend',
       mentorName: 'mentor_name',
       proofDocument: 'proof_document',
-      certificateLink: 'proof_document'
+      certificateLink: 'proof_document',
+      skills: 'skills',
+      description: 'description'
     },
     fromDb: {
       job_role: 'role',
@@ -187,7 +219,9 @@ const columnMapping = {
       location: 'location',
       stipend: 'stipend',
       mentor_name: 'mentorName',
-      proof_document: 'certificateLink'
+      proof_document: 'certificateLink',
+      skills: 'skills',
+      description: 'description'
     }
   },
   trainings: {
@@ -199,7 +233,9 @@ const columnMapping = {
       startDate: 'start_date',
       endDate: 'end_date',
       proofDocument: 'proof_document',
-      certificateLink: 'proof_document'
+      certificateLink: 'proof_document',
+      skills: 'skills',
+      description: 'description'
     },
     fromDb: {
       title: 'title',
@@ -207,7 +243,9 @@ const columnMapping = {
       training_type: 'trainingType',
       start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'certificateLink'
+      proof_document: 'certificateLink',
+      skills: 'skills',
+      description: 'description'
     }
   },
   publications: {
@@ -221,7 +259,8 @@ const columnMapping = {
       mentorName: 'mentor_name',
       evidenceDocument: 'evidence_document',
       link: 'evidence_document', // Form uses link?
-      description: 'description'
+      description: 'description',
+      skills: 'skills'
     },
     fromDb: {
       title: 'title',
@@ -231,19 +270,30 @@ const columnMapping = {
       author_count: 'authorCount',
       mentor_name: 'mentorName',
       evidence_document: 'link', // Form uses link
-      description: 'description'
+      description: 'description',
+      skills: 'skills'
     }
   },
   otherExperiences: {
     toDb: {
+      title: 'title',
+      organization: 'organization',
       startDate: 'start_date',
       endDate: 'end_date',
-      proofDocument: 'proof_document'
+      proofDocument: 'proof_document',
+      location: 'location',
+      skills: 'skills',
+      description: 'description'
     },
     fromDb: {
+      title: 'title',
+      organization: 'organization',
       start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'proofDocument'
+      proof_document: 'proofDocument',
+      location: 'location',
+      skills: 'skills',
+      description: 'description'
     }
   },
   certifications: {
