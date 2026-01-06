@@ -26,6 +26,7 @@ import {
 } from '@chakra-ui/react';
 import { EditIcon, AddIcon } from '@chakra-ui/icons';
 import AdminLayout from '../../components/AdminLayout';
+import { PlacementService } from '../../services/placement.service';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -36,16 +37,6 @@ const UserManagement = () => {
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
-  // Dummy Users
-  const dummyUsers = [
-    { id: 1, name: 'Placement Officer', email: 'admin@rvu.edu.in', role: 'admin', created_at: '2023-01-01', stakeholder: 'Placement Team' },
-    { id: 2, name: 'Super Admin', email: 'superadmin@rvu.edu.in', role: 'superadmin', created_at: '2023-01-01', stakeholder: 'Placement Team' },
-    { id: 3, name: 'John Doe', email: 'john@student.rvu.edu.in', role: 'student', created_at: '2023-06-15', stakeholder: 'Students' },
-    { id: 4, name: 'Jane Smith', email: 'jane@student.rvu.edu.in', role: 'student', created_at: '2023-06-16', stakeholder: 'Students' },
-    { id: 5, name: 'Alice Alumni', email: 'alice@alumni.rvu.edu.in', role: 'alumni', created_at: '2022-05-20', stakeholder: 'Alumni' },
-    { id: 6, name: 'Bob Recruiter', email: 'bob@techcorp.com', role: 'company_rep', created_at: '2023-08-10', stakeholder: 'Company Reps' },
-  ];
-
   const stakeholders = ['All', 'Placement Team', 'Students', 'Alumni', 'Company Reps'];
 
   useEffect(() => {
@@ -55,9 +46,8 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setUsers(dummyUsers);
+      const data = await PlacementService.getAllUsers();
+      setUsers(data);
     } catch (err) {
       setError('Failed to load users');
     } finally {
@@ -75,11 +65,12 @@ const UserManagement = () => {
 
   const getRoleBadgeColor = (role) => {
     switch (role) {
-      case 'superadmin': return 'purple';
-      case 'admin': return 'blue';
+      case 'sudo_admin': return 'purple';
+      case 'placement_director': return 'blue';
+      case 'placement_officers': return 'blue';
       case 'student': return 'green';
       case 'alumni': return 'orange';
-      case 'company_rep': return 'teal';
+      case 'company': return 'teal';
       default: return 'gray';
     }
   };

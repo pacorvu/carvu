@@ -244,7 +244,18 @@ const Students = () => {
 
   // Extract unique schools and programs for filters
   const schools = [...new Set(students.map(s => s.school))].sort();
-  const programs = [...new Set(students.map(s => s.program))].sort();
+  
+  // Filter programs based on selected school
+  const programs = [...new Set(
+    students
+      .filter(s => !selectedSchool || s.school === selectedSchool)
+      .map(s => s.program)
+  )].sort();
+
+  // Reset selected program when school changes
+  useEffect(() => {
+    setSelectedProgram('');
+  }, [selectedSchool]);
 
   // Filter logic
   const filteredStudents = students.filter(student => {

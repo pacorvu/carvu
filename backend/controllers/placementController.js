@@ -185,6 +185,90 @@ const getStudentOffers = async (req, res) => {
   }
 };
 
+// Get all students
+const getAllStudents = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        spd.full_name as name,
+        spd.usn,
+        spd.school_name as school,
+        p.name as program,
+        s.name as specialization,
+        COALESCE(spc.college_email, spc.personal_email) as email,
+        spc.phone_number as contact,
+        spd.profile_image,
+        (
+          SELECT json_build_object(
+            'company_name', jo.company_name,
+            'company_id', c.id
+          )
+          FROM job_offers jo
+          LEFT JOIN companies c ON jo.company_name = c.company_name
+          WHERE jo.usn = spd.usn
+          LIMIT 1
+        ) as placement
+      FROM students_personal_details spd
+      LEFT JOIN programs p ON spd.program_id = p.id
+      LEFT JOIN specializations s ON spd.specialization_id = s.id
+      LEFT JOIN student_profile_communication spc ON spd.usn = spc.usn
+      ORDER BY spd.usn ASC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Get all users (Admin)
+const getAllUsers = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        ul.id, 
+        COALESCE(spd.full_name, split_part(COALESCE(ul.rvu_email, ul.personal_email), '@', 1)) as name,
+        COALESCE(ul.rvu_email, ul.personal_email) as email,
+        r.name as role,
+        ul.created_at,
+        ul.usn
+      FROM user_login ul
+      LEFT JOIN roles r ON ul.role_id = r.id
+      LEFT JOIN students_personal_details spd ON ul.usn = spd.usn
+      ORDER BY ul.created_at DESC
+    `;
+    const result = await pool.query(query);
+    
+    // Map DB roles to Frontend roles/stakeholders if needed, 
+    // but sending raw data is better, let frontend handle display logic.
+    // However, we can add a helper field for stakeholder to make frontend easier.
+    const users = result.rows.map(user => {
+      let stakeholder = 'Other';
+      const role = user.role;
+      
+      if (['sudo_admin', 'placement_director', 'placement_officers', 'admin_viewer'].includes(role)) {
+        stakeholder = 'Placement Team';
+      } else if (role === 'student') {
+        stakeholder = 'Students';
+      } else if (role === 'alumni') {
+        stakeholder = 'Alumni';
+      } else if (role === 'company') {
+        stakeholder = 'Company Reps';
+      } else if (['school_dean', 'spc_core', 'spc_school'].includes(role)) {
+        stakeholder = 'Placement Team'; // Or new category
+      }
+      
+      return { ...user, stakeholder };
+    });
+
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllCompanies,
   getCompanyById,
@@ -192,5 +276,7 @@ module.exports = {
   getDriveById,
   getStudentProcess,
   registerForDrive,
-  getStudentOffers
+  getStudentOffers,
+  getAllStudents,
+  getAllUsers
 };
