@@ -109,6 +109,22 @@ export const PlacementService = {
   },
 
   // --- JOB OFFERS ---
+  getAllJobOffers: async () => {
+    try {
+      const res = await fetch(`${API_URL}/placement/job-offers`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        console.error('Failed to fetch job offers, status:', res.status, res.statusText);
+        throw new Error('Failed to fetch job offers');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching job offers:', error);
+      return [];
+    }
+  },
+
   getStudentOffers: async (usn) => {
     try {
       const res = await fetch(`${API_URL}/placement/offers/${usn}`, {
@@ -154,19 +170,6 @@ export const PlacementService = {
   },
 
   // --- STUDENT INFO ---
-  getAllStudents: async () => {
-    try {
-      const res = await fetch(`${API_URL}/placement/students`, {
-        headers: getHeaders()
-      });
-      if (!res.ok) throw new Error('Failed to fetch students');
-      return await res.json();
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      return [];
-    }
-  },
-
   getStudentByUsn: async (usn) => {
       // Placeholder: This should be handled by StudentProfileService
       return null;

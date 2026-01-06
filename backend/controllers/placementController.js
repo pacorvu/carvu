@@ -185,6 +185,23 @@ const getStudentOffers = async (req, res) => {
   }
 };
 
+// Get all job offers (Admin)
+const getAllJobOffers = async (req, res) => {
+  try {
+    const query = `
+      SELECT jo.*, spd.school_name as school
+      FROM job_offers jo
+      LEFT JOIN students_personal_details spd ON jo.usn = spd.usn
+      ORDER BY jo.created_at DESC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Get all students
 const getAllStudents = async (req, res) => {
   try {
@@ -277,6 +294,7 @@ module.exports = {
   getStudentProcess,
   registerForDrive,
   getStudentOffers,
+  getAllJobOffers,
   getAllStudents,
   getAllUsers
 };

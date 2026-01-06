@@ -8,6 +8,7 @@ const {
   getStudentProcess,
   registerForDrive,
   getStudentOffers,
+  getAllJobOffers,
   getAllStudents,
   getAllUsers
 } = require('../controllers/placementController');
@@ -29,5 +30,6 @@ router.post('/register', authenticateToken, registerForDrive);
 router.get('/students', authenticateToken, getAllStudents);
 router.get('/process/:usn', authenticateToken, getStudentProcess);
 router.get('/offers/:usn', authenticateToken, getStudentOffers);
+router.get('/job-offers', authenticateToken, getAllJobOffers);
 
 module.exports = router;
