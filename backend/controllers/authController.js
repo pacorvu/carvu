@@ -191,60 +191,139 @@ const logout = async (req, res) => {
   res.json({ ok: true });
 };
 
+const registerStudent = async (req, res) => {
+  try {
+    const { usn, email, rvuEmail, password } = req.body || {};
+    if (!usn || !password) return res.status(400).json({ error: 'USN and password required' });
+    const loginTable = await getLoginTable();
+    const colsRes = await pool.query(
+      "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
+      [loginTable]
+    );
+    const cols = colsRes.rows.map(r => r.column_name);
+    const rolesColsRes = await pool.query(
+      "select column_name from information_schema.columns where table_schema='public' and table_name='roles'"
+    );
+    const rolesCols = rolesColsRes.rows.map(r => r.column_name);
+    const idCol = rolesCols.includes('id') ? 'id' : (rolesCols.includes('role_id') ? 'role_id' : null);
+    const nameCol = rolesCols.includes('name') ? 'name' : (rolesCols.includes('role_name') ? 'role_name' : (rolesCols.includes('role') ? 'role' : null));
+    let roleId = null;
+    if (idCol && nameCol) {
+      const r = await pool.query(`select ${idCol} as id from roles where ${nameCol}=$1 limit 1`, ['student']);
+      roleId = r.rows.length ? r.rows[0].id : null;
+    }
+    const emailCols = ['rvu_email','email','personal_email','personal_mail'].filter(c => cols.includes(c));
+    const whereChecks = [];
+    const paramsChecks = [];
+    if (cols.includes('usn')) { whereChecks.push(`usn = $${paramsChecks.length + 1}`); paramsChecks.push(usn); }
+    if (emailCols.length && email) {
+      whereChecks.push(emailCols.map(c => `"${c}" = $${paramsChecks.length + 1}`).join(' or '));
+      paramsChecks.push(email);
+    }
+    const exists = whereChecks.length
+      ? await pool.query(`select 1 from ${loginTable} where ${whereChecks.join(' or ')} limit 1`, paramsChecks)
+      : { rows: [] };
+    if (exists.rows.length) return res.status(400).json({ error: 'User already exists' });
+    const insertCols = [];
+    const insertParams = [];
+    const placeholders = [];
+    if (cols.includes('usn')) { insertCols.push('usn'); insertParams.push(usn); }
+    if (roleId && cols.includes('role_id')) { insertCols.push('role_id'); insertParams.push(roleId); }
+    else if (cols.includes('role') || cols.includes('role_name')) {
+      const rn = cols.includes('role') ? 'role' : 'role_name';
+      insertCols.push(rn); insertParams.push('student');
+    }
+    if (email) {
+      const eCol = cols.includes('personal_email') ? 'personal_email'
+        : (cols.includes('personal_mail') ? 'personal_mail'
+        : (cols.includes('email') ? 'email'
+        : (cols.includes('rvu_email') ? 'rvu_email' : null)));
+      if (eCol) { insertCols.push(eCol); insertParams.push(email); }
+    } else if (rvuEmail && cols.includes('rvu_email')) {
+      insertCols.push('rvu_email'); insertParams.push(rvuEmail);
+    }
+    if (cols.includes('password_hash')) {
+      const hashed = await bcrypt.hash(password, 10);
+      insertCols.push('password_hash'); insertParams.push(hashed);
+    } else if (cols.includes('password')) {
+      insertCols.push('password'); insertParams.push(password);
+    }
+    if (cols.includes('is_active')) { insertCols.push('is_active'); insertParams.push(true); }
+    if (cols.includes('created_at')) { insertCols.push('created_at'); insertParams.push(new Date().toISOString()); }
+    if (cols.includes('updated_at')) { insertCols.push('updated_at'); insertParams.push(new Date().toISOString()); }
+    for (let i = 0; i < insertParams.length; i++) placeholders.push(`$${i + 1}`);
+    if (!insertCols.length) return res.status(500).json({ error: 'Unable to register user (no insertable columns)' });
+    await pool.query(
+      `insert into ${loginTable} (${insertCols.map(c => `"${c}"`).join(', ')}) values (${placeholders.join(', ')})`,
+      insertParams
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
 const verifyUsn = async (req, res) => {
-  console.log('verifyUsn called with body:', req.body);
   try {
     const { usn } = req.body;
     if (!usn) {
-        console.log('verifyUsn: No USN provided');
-        return res.status(400).json({ error: 'USN required' });
+      return res.status(400).json({ error: 'USN required' });
     }
-
-    console.log('verifyUsn: Getting login table');
     const loginTable = await getLoginTable();
-    console.log(`verifyUsn: Using login table ${loginTable}`);
-    
-    console.log(`verifyUsn: Querying ${loginTable} for USN ${usn}`);
     const userRes = await pool.query(`select * from ${loginTable} where usn=$1`, [usn]);
-    console.log(`verifyUsn: Found ${userRes.rows.length} rows`);
-
-    if (!userRes.rows.length) {
-      console.log('verifyUsn: USN not found');
-      return res.status(404).json({ error: 'USN not found in database. Please contact administration.' });
+    if (userRes.rows.length) {
+      const user = userRes.rows[0];
+      let name = '';
+      let school = null;
+      let program = null;
+      try {
+        const pr = await pool.query('select full_name, school_name, program_id from students_personal_details where usn=$1', [usn]);
+        if (pr.rows.length) {
+          name = pr.rows[0].full_name || '';
+          school = pr.rows[0].school_name || null;
+          const pid = pr.rows[0].program_id;
+          if (pid) {
+            const p = await pool.query('select name from programs where id=$1', [pid]);
+            if (p.rows.length) program = p.rows[0].name;
+          }
+        }
+      } catch {}
+      return res.json({
+        exists: true,
+        isRegistered: true,
+        name,
+        email: user.rvu_email || user.email || user.personal_email,
+        school,
+        program
+      });
     }
-
-    const user = userRes.rows[0];
-    
-    // Check if already registered (has password)
-    const isRegistered = !!user.password_hash;
-    console.log(`verifyUsn: User registered status: ${isRegistered}`);
-    
-    // Try to get name from personal details
-    let name = '';
+    const personalRes = await pool.query('select full_name, school_name, program_id from students_personal_details where usn=$1', [usn]);
+    if (!personalRes.rows.length) {
+      return res.status(404).json({ error: 'USN not found in personal details. Please contact administration.' });
+    }
+    const row = personalRes.rows[0];
+    const name = row.full_name;
+    const school = row.school_name || null;
+    let program = null;
+    if (row.program_id) {
+      const p = await pool.query('select name from programs where id=$1', [row.program_id]);
+      if (p.rows.length) program = p.rows[0].name;
+    }
+    let email = null;
     try {
-       console.log('verifyUsn: Querying personal details');
-       const personalRes = await pool.query('select full_name from students_personal_details where usn=$1', [usn]);
-       if (personalRes.rows.length) {
-           name = personalRes.rows[0].full_name;
-           console.log(`verifyUsn: Found name: ${name}`);
-       } else {
-           console.log('verifyUsn: No name found in personal details');
-       }
-    } catch (e) {
-       console.error('verifyUsn: Error fetching personal details (non-fatal):', e.message);
-       // ignore
-    }
-
-    const responseData = {
+      const commRes = await pool.query('select college_email, personal_email from student_profile_communication where usn=$1', [usn]);
+      if (commRes.rows.length) {
+        email = commRes.rows[0].college_email || null;
+      }
+    } catch {}
+    return res.json({
       exists: true,
-      email: user.rvu_email || user.email || user.personal_email,
-      name: name,
-      isRegistered
-    };
-    console.log('verifyUsn: Sending response:', responseData);
-    res.json(responseData);
+      isRegistered: false,
+      name,
+      email,
+      school,
+      program
+    });
   } catch (e) {
-    console.error(`Verify USN error: ${e.message}`, e);
     res.status(500).json({ error: e.message });
   }
 };

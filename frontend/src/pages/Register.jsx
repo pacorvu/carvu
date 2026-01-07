@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { 
   Box, Container, VStack, Heading, Input, Button, Text, 
-  Flex, SimpleGrid, Textarea
+  Flex, SimpleGrid, Textarea, Tabs, TabList, TabPanels, Tab, TabPanel, Badge
 } from "@chakra-ui/react"
 import { Link as RouterLink, useNavigate } from "react-router-dom"
 import { 
@@ -16,7 +16,15 @@ import { useAuth } from "../context/AuthContext"
 const Icon = ({ as, ...props }) => <Box as={as} {...props} />
 
 const StudentRegister = () => {
-  const [step, setStep] = useState(1)
+  const initialSaved = (() => {
+    try {
+      const raw = sessionStorage.getItem('studentRegisterState');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const [step, setStep] = useState(initialSaved?.step ?? 1)
   const [isCompleted, setIsCompleted] = useState(false)
   const [formData, setFormData] = useState({
     // Step 1: USN & Name
@@ -44,24 +52,108 @@ const StudentRegister = () => {
     motherName: "",
     motherContact: "",
     motherOccupation: "",
+    guardianName: "",
+    guardianContact: "",
+    guardianOccupation: "",
+    fatherEmail: "",
+    motherEmail: "",
+    guardianEmail: "",
     
     // Step 5: Password
     password: "",
     confirmPassword: ""
   })
+  useEffect(() => {
+    if (initialSaved?.formData) {
+      setFormData(prev => ({ ...prev, ...initialSaved.formData }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   
   const [siblings] = useState([])
   const [error, setError] = useState("")
-  const [isUsnVerified, setIsUsnVerified] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
+  const [isUsnVerified, setIsUsnVerified] = useState(initialSaved?.isUsnVerified ?? false)
+  const [otpSent, setOtpSent] = useState(initialSaved?.otpSent ?? false)
   const [otp, setOtp] = useState("")
-  const [maskedEmail, setMaskedEmail] = useState("")
+  const [maskedEmail, setMaskedEmail] = useState(initialSaved?.maskedEmail ?? "")
   const [loading, setLoading] = useState(false)
+  const [majors, setMajors] = useState([])
+  const [minors, setMinors] = useState([])
+  const [specializations, setSpecializations] = useState([])
+  const [personalOtpSent, setPersonalOtpSent] = useState(initialSaved?.personalOtpSent ?? false)
+  const [personalOtp, setPersonalOtp] = useState("")
+  const [isPersonalVerified, setIsPersonalVerified] = useState(initialSaved?.isPersonalVerified ?? false)
+  const [dobError, setDobError] = useState("")
+  const [selectedParentRole, setSelectedParentRole] = useState(initialSaved?.selectedParentRole ?? "")
+  const [savedParents, setSavedParents] = useState(initialSaved?.savedParents ?? [])
+  const [personalEmailError, setPersonalEmailError] = useState("")
+  const [parentName, setParentName] = useState("")
+  const [parentContact, setParentContact] = useState("")
+  const [parentOccupation, setParentOccupation] = useState("")
+  const [parentEmail, setParentEmail] = useState("")
+  const [parentTab, setParentTab] = useState(0)
+  const isValidGmail = (e) => {
+    if (typeof e !== 'string') return false
+    const v = e.trim().toLowerCase()
+    return /^[a-z0-9._%+-]+@gmail\.com$/.test(v)
+  }
+  useEffect(() => {
+    const r = ['Father','Mother','Guardian'][parentTab]
+    setSelectedParentRole(r)
+    if (r === 'Father') {
+      setParentName(formData.fatherName || "")
+      setParentContact(formData.fatherContact || "")
+      setParentOccupation(formData.fatherOccupation || "")
+      setParentEmail(formData.fatherEmail || "")
+    } else if (r === 'Mother') {
+      setParentName(formData.motherName || "")
+      setParentContact(formData.motherContact || "")
+      setParentOccupation(formData.motherOccupation || "")
+      setParentEmail(formData.motherEmail || "")
+    } else {
+      setParentName(formData.guardianName || "")
+      setParentContact(formData.guardianContact || "")
+      setParentOccupation(formData.guardianOccupation || "")
+      setParentEmail(formData.guardianEmail || "")
+    }
+  }, [parentTab])
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value } = e.target
+    const isRvuEmail = typeof value === 'string' && value.toLowerCase().endsWith('@rvu.edu.in')
+    const isGmail = typeof value === 'string' && value.toLowerCase().endsWith('@gmail.com')
+    if (name === 'dob') {
+      const d = new Date(value)
+      if (isNaN(d.getTime())) {
+        setDobError("Enter a valid date")
+      } else {
+        const now = new Date()
+        let age = now.getFullYear() - d.getFullYear()
+        const m = now.getMonth() - d.getMonth()
+        if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--
+        if (age < 13) setDobError("Invalid DOB")
+        else setDobError("")
+      }
+    }
+    if (name === 'email') {
+      setPersonalEmailError("")
+      if (isRvuEmail) {
+        setFormData({ ...formData, email: '', rvuEmail: value })
+        setError("Entered email is RVU domain; moved to RVU Email")
+        return
+      }
+      if (value && !isGmail) {
+        setError("Only Gmail addresses are allowed")
+      }
+    }
+    if (name === 'rvuEmail' && value && !isRvuEmail) {
+      setFormData({ ...formData, rvuEmail: '', email: value })
+      setError("Entered email is not RVU domain; moved to Personal Email")
+      return
+    }
+    setFormData({ ...formData, [name]: value })
     setError("")
-    if (e.target.name === "usn") {
+    if (name === "usn") {
         setIsUsnVerified(false)
         setOtpSent(false)
     }
@@ -90,7 +182,15 @@ const StudentRegister = () => {
            setError("Student already registered. Please login.");
            setIsUsnVerified(false);
         } else {
-           setFormData({ ...formData, name: data.name || "", email: data.email });
+           const isRvu = data.email && String(data.email).toLowerCase().endsWith('@rvu.edu.in')
+           setFormData({ 
+             ...formData, 
+             name: data.name || "", 
+             email: isRvu ? "" : (data.email || ""),
+             rvuEmail: isRvu ? data.email : (formData.rvuEmail || ""),
+             school: data.school || "",
+             program: data.program || ""
+           });
            
            // Mask email for display
            if (data.email) {
@@ -115,6 +215,24 @@ const StudentRegister = () => {
     }
   }
 
+  useEffect(() => {
+    try {
+      const toSave = {
+        step,
+        formData,
+        isUsnVerified,
+        otpSent,
+        maskedEmail,
+        personalOtpSent,
+        isPersonalVerified,
+        selectedParentRole,
+        savedParents,
+        parentTab
+      };
+      sessionStorage.setItem('studentRegisterState', JSON.stringify(toSave));
+    } catch {}
+  }, [step, formData, isUsnVerified, otpSent, maskedEmail, personalOtpSent, isPersonalVerified, selectedParentRole, savedParents, parentTab]);
+
   const handleSendOtp = () => {
     setOtpSent(true)
     alert(`OTP sent to ${formData.email}: 123456`) // Demo OTP
@@ -129,12 +247,32 @@ const StudentRegister = () => {
     }
   }
 
+  // Academic details step removed; no meta load needed
   const handleNext = () => {
+    if (step === 2) {
+      if (!formData.email || !isPersonalVerified) {
+        setError("Please verify your Personal Email to proceed")
+        return
+      }
+      if (!formData.dob || dobError) {
+        setError("Invalid DOB")
+        return
+      }
+    }
+    if (step === 3) {
+      const hasFather = formData.fatherName && formData.fatherContact
+      const hasMother = formData.motherName && formData.motherContact
+      const hasGuardian = formData.guardianName && formData.guardianContact
+      if (!(hasFather || hasMother || hasGuardian)) {
+        setError("Add at least one parent/guardian")
+        return
+      }
+    }
     setStep(step + 1)
   }
 
   const handleBack = () => {
-    setStep(step - 1)
+    setStep(Math.max(1, step - 1))
   }
 
   const handleSubmit = () => {
@@ -142,8 +280,34 @@ const StudentRegister = () => {
       setError("Passwords do not match")
       return
     }
-    console.log("Full Registration Data:", { ...formData, siblings })
-    setIsCompleted(true)
+    const payload = {
+      usn: String(formData.usn || '').toUpperCase(),
+      email: formData.email || null,
+      rvuEmail: formData.rvuEmail || null,
+      password: formData.password || null
+    }
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register-student`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || "Registration failed")
+        return
+      }
+      setError("")
+      setIsCompleted(true)
+      try {
+        sessionStorage.removeItem('studentRegisterState');
+        sessionStorage.removeItem('registerRole');
+      } catch {}
+    })
+    .catch(() => {
+      setError("Connection error. Please try again.")
+    })
   }
 
   const inputStyle = {
@@ -243,45 +407,14 @@ const StudentRegister = () => {
     </VStack>
   )
 
-  const renderStep2 = () => (
-    <VStack gap={4} align="stretch">
-      <Heading size="md" color="#20343c">Step 2: Academic Details</Heading>
-      <Text color="#20343c" fontWeight="bold">Welcome, {formData.name}</Text>
-      
-      <Field label="School">
-        <Input name="school" placeholder="e.g. School of Engineering" value={formData.school} onChange={handleChange} {...inputStyle} color="gray.700" />
-      </Field>
-      
-      <Field label="Program">
-        <Input name="program" placeholder="e.g. B.Tech" value={formData.program} onChange={handleChange} {...inputStyle} color="gray.700" />
-      </Field>
-      
-      <Flex gap={4}>
-        <Field label="Major">
-          <Input name="major" placeholder="e.g. Computer Science" value={formData.major} onChange={handleChange} {...inputStyle} color="gray.700" />
-        </Field>
-        <Field label="Minor">
-          <Input name="minor" placeholder="Optional" value={formData.minor} onChange={handleChange} {...inputStyle} color="gray.700" />
-        </Field>
-      </Flex>
-      
-      <Field label="Specialization">
-        <Input name="specialization" placeholder="e.g. AI/ML" value={formData.specialization} onChange={handleChange} {...inputStyle} color="gray.700" />
-      </Field>
-
-      <Flex gap={4} mt={4}>
-        <Button variant="outline" onClick={handleBack} borderColor="#20343c" color="#20343c" _hover={{ bg: "gray.50" }}>Back</Button>
-        <Button bg="#20343c" color="white" flex={1} _hover={{ bg: "#1a2b32" }} onClick={handleNext}>Next</Button>
-      </Flex>
-    </VStack>
-  )
+  // Academic details step removed
 
   const renderStep3 = () => (
     <VStack gap={4} align="stretch">
-      <Heading size="md" color="#20343c">Step 3: Personal Details</Heading>
+      <Heading size="md" color="#20343c">Step 2: Personal Details</Heading>
       
       <Flex gap={4}>
-        <Field label="Date of Birth">
+        <Field label="Date of Birth" errorText={dobError || null}>
           <Input type="date" name="dob" value={formData.dob} onChange={handleChange} {...inputStyle} color="gray.700" />
         </Field>
         <Field label="Gender">
@@ -307,13 +440,79 @@ const StudentRegister = () => {
         </Field>
       </Flex>
       
-      <Field label="Personal Email ID">
-        <Input type="email" name="email" placeholder="e.g. john.doe@gmail.com" value={formData.email} onChange={handleChange} {...inputStyle} color="gray.700" />
+      <Field label="Personal Email ID" errorText={personalEmailError || (error && error.toLowerCase().includes('email') ? error : null)}>
+        <Input 
+          type="email" 
+          name="email" 
+          placeholder="e.g. john.doe@gmail.com" 
+          value={formData.email} 
+          onChange={handleChange} 
+          {...inputStyle} 
+          color="gray.700" 
+        />
       </Field>
       
-      <Field label="RVU Email ID">
-        <Input type="email" name="rvuEmail" placeholder="e.g. john.doe@rvu.edu.in" value={formData.rvuEmail} onChange={handleChange} {...inputStyle} color="gray.700" />
-      </Field>
+      {!isPersonalVerified && formData.email && isValidGmail(formData.email) ? (
+        <VStack gap={3} align="stretch">
+          <Text fontSize="sm" color="gray.600">
+            We will send a 6-digit code to {formData.email}
+          </Text>
+          {!personalOtpSent ? (
+            <Button 
+              bg="#20343c" 
+              color="white" 
+              width="full" 
+              borderRadius="md"
+              _hover={{ bg: "#1a2b32" }} 
+              onClick={() => {
+                if (!isValidGmail(formData.email)) { setPersonalEmailError("Invalid Gmail address"); return; }
+                setPersonalOtpSent(true)
+                alert(`OTP sent to ${formData.email}: 123456`)
+              }}
+            >
+              Send OTP to Personal Email
+            </Button>
+          ) : (
+            <VStack gap={3} align="stretch">
+              <Field label="Enter OTP" errorText={error}>
+                <Input 
+                  placeholder="Enter 6-digit OTP" 
+                  value={personalOtp} 
+                  onChange={(e) => setPersonalOtp(e.target.value)}
+                  {...inputStyle}
+                  color="gray.700"
+                  maxLength={6}
+                  textAlign="center"
+                  letterSpacing="widest"
+                  fontWeight="bold"
+                />
+              </Field>
+              <Button 
+                bg="#20343c" 
+                color="white" 
+                width="full" 
+                borderRadius="md"
+                _hover={{ bg: "#1a2b32" }} 
+                onClick={() => {
+                  if (personalOtp === "123456") {
+                    setError("")
+                    setIsPersonalVerified(true)
+                  } else {
+                    setError("Invalid OTP. Please try again.")
+                  }
+                }}
+              >
+                Verify Personal Email
+              </Button>
+            </VStack>
+          )}
+        </VStack>
+      ) : isPersonalVerified ? (
+        <Text fontSize="sm" color="green.600" bg="green.50" p={2} borderRadius="md" border="1px solid" borderColor="green.200">
+          <Icon as={FaCheck} display="inline" mr={2} />
+          Personal Email verified
+        </Text>
+      ) : null}
       
       <Field label="Contact Number">
         <Input type="tel" name="contact" placeholder="e.g. 9876543210" value={formData.contact} onChange={handleChange} {...inputStyle} color="gray.700" />
@@ -328,41 +527,88 @@ const StudentRegister = () => {
 
   const renderStep4 = () => (
     <VStack gap={4} align="stretch">
-      <Heading size="md" color="#20343c">Step 4: Family Details</Heading>
-      
-      <Box p={4} borderWidth="1px" borderRadius="md" borderColor="gray.200" bg="gray.50">
-        <Text fontWeight="bold" mb={3} color="#20343c">Father&apos;s Details</Text>
-        <VStack gap={3}>
-          <Field label="Name">
-            <Input name="fatherName" placeholder="Name" value={formData.fatherName} onChange={handleChange} {...inputStyle} color="gray.700" />
-          </Field>
-          <Flex gap={3} width="full">
-            <Field label="Contact">
-              <Input name="fatherContact" placeholder="Contact" value={formData.fatherContact} onChange={handleChange} {...inputStyle} color="gray.700" />
-            </Field>
-            <Field label="Occupation">
-              <Input name="fatherOccupation" placeholder="Occupation" value={formData.fatherOccupation} onChange={handleChange} {...inputStyle} color="gray.700" />
-            </Field>
-          </Flex>
-        </VStack>
-      </Box>
+      <Heading size="md" color="#20343c">Step 3: Family Details</Heading>
+      {error && (
+        <Text fontSize="sm" color="red.600" bg="red.50" p={2} borderRadius="md" border="1px solid" borderColor="red.200">
+          {error}
+        </Text>
+      )}
+      <Text fontSize="sm" color="gray.600">Add up to three contacts</Text>
+      <Tabs index={parentTab} onChange={(i) => { setParentTab(i); }} isFitted variant="enclosed">
+        <TabList>
+          <Tab isDisabled={savedParents.length >= 3 && !savedParents.includes('Father')}>
+            Father {savedParents.includes('Father') && <Badge ml={2} colorScheme="green">Added</Badge>}
+          </Tab>
+          <Tab isDisabled={savedParents.length >= 3 && !savedParents.includes('Mother')}>
+            Mother {savedParents.includes('Mother') && <Badge ml={2} colorScheme="green">Added</Badge>}
+          </Tab>
+          <Tab isDisabled={savedParents.length >= 3 && !savedParents.includes('Guardian')}>
+            Guardian {savedParents.includes('Guardian') && <Badge ml={2} colorScheme="green">Added</Badge>}
+          </Tab>
+        </TabList>
+        <TabPanels>
+          {['Father','Mother','Guardian'].map((role, idx) => (
+            <TabPanel key={role}>
+              <Box p={4} borderWidth="1px" borderRadius="md" borderColor="gray.200" bg="gray.50">
+                <Text fontWeight="bold" mb={3} color="#20343c">{role} Details</Text>
+                <VStack gap={3}>
+                  <Field label="Name">
+                    <Input placeholder="Name" value={parentName} onChange={(e) => setParentName(e.target.value)} {...inputStyle} color="gray.700" />
+                  </Field>
+                  <Flex gap={3} width="full">
+                    <Field label="Contact">
+                      <Input placeholder="Contact" value={parentContact} onChange={(e) => setParentContact(e.target.value)} {...inputStyle} color="gray.700" />
+                    </Field>
+                    <Field label="Occupation">
+                      <Input placeholder="Occupation" value={parentOccupation} onChange={(e) => setParentOccupation(e.target.value)} {...inputStyle} color="gray.700" />
+                    </Field>
+                  </Flex>
+                  <Field label="Email">
+                    <Input type="email" placeholder="e.g. parent@gmail.com" value={parentEmail} onChange={(e) => setParentEmail(e.target.value)} {...inputStyle} color="gray.700" />
+                  </Field>
+                  <Button 
+                    bg="#20343c" 
+                    color="white" 
+                    width="full" 
+                    _hover={{ bg: "#1a2b32" }}
+                    onClick={() => {
+                      const r = ['Father','Mother','Guardian'][parentTab]
+                      if (!parentName || !parentContact) { setError("Please enter name and contact"); return; }
+                      if (parentEmail && !parentEmail.toLowerCase().endsWith('@gmail.com')) { setError("Only Gmail addresses are allowed"); return; }
+                      if (savedParents.length >= 3 && !savedParents.includes(r)) { setError("Maximum three contacts allowed"); return; }
+                      if (r === 'Father') {
+                        setFormData({ ...formData, fatherName: parentName, fatherContact: parentContact, fatherOccupation: parentOccupation, fatherEmail: parentEmail });
+                      } else if (r === 'Mother') {
+                        setFormData({ ...formData, motherName: parentName, motherContact: parentContact, motherOccupation: parentOccupation, motherEmail: parentEmail });
+                      } else {
+                        setFormData({ ...formData, guardianName: parentName, guardianContact: parentContact, guardianOccupation: parentOccupation, guardianEmail: parentEmail });
+                      }
+                      if (!savedParents.includes(r)) {
+                        const nextSaved = [...savedParents, r]
+                        setSavedParents(nextSaved)
+                        const order = ['Father','Mother','Guardian']
+                        const nextIdx = order.findIndex(x => !nextSaved.includes(x))
+                        if (nextIdx !== -1) setParentTab(nextIdx)
+                      }
+                      setError("");
+                    }}
+                  >
+                    Save {role} Details
+                  </Button>
+                </VStack>
+              </Box>
+            </TabPanel>
+          ))}
+        </TabPanels>
+      </Tabs>
 
-      <Box p={4} borderWidth="1px" borderRadius="md" borderColor="gray.200" bg="gray.50">
-        <Text fontWeight="bold" mb={3} color="#20343c">Mother&apos;s Details</Text>
-        <VStack gap={3}>
-          <Field label="Name">
-            <Input name="motherName" placeholder="Name" value={formData.motherName} onChange={handleChange} {...inputStyle} color="gray.700" />
-          </Field>
-          <Flex gap={3} width="full">
-            <Field label="Contact">
-              <Input name="motherContact" placeholder="Contact" value={formData.motherContact} onChange={handleChange} {...inputStyle} color="gray.700" />
-            </Field>
-            <Field label="Occupation">
-              <Input name="motherOccupation" placeholder="Occupation" value={formData.motherOccupation} onChange={handleChange} {...inputStyle} color="gray.700" />
-            </Field>
-          </Flex>
-        </VStack>
-      </Box>
+      {savedParents.length > 0 && (
+        <Box p={3} borderWidth="1px" borderRadius="md" borderColor="green.200" bg="green.50">
+          <Text fontSize="sm" color="green.700">
+            {savedParents.map((r, i) => `${r} details added`).join(' • ')}
+          </Text>
+        </Box>
+      )}
 
       <Flex gap={4} mt={4}>
         <Button variant="outline" onClick={handleBack} borderColor="#20343c" color="#20343c" _hover={{ bg: "gray.50" }}>Back</Button>
@@ -373,7 +619,7 @@ const StudentRegister = () => {
 
   const renderStep5 = () => (
     <VStack gap={6} align="stretch">
-      <Heading size="md" color="#20343c">Step 5: Set Password</Heading>
+      <Heading size="md" color="#20343c">Step 4: Set Password</Heading>
       
       <Field label="Password" errorText={error && error.includes("Password") ? error : null}>
         <Input type="password" name="password" value={formData.password} onChange={handleChange} {...inputStyle} color="gray.700" />
@@ -394,11 +640,12 @@ const StudentRegister = () => {
 
   return (
     <VStack gap={6} align="stretch">
+      {/* Academic details confirmation removed */}
       <Box textAlign="center" mb={4}>
         <Heading color="#20343c">Student Registration</Heading>
         {!isCompleted && (
           <Flex justify="center" gap={2} mt={2}>
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <Box 
                 key={i} 
                 w={3} h={3} 
@@ -427,10 +674,9 @@ const StudentRegister = () => {
       ) : (
         <>
           {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
-          {step === 5 && renderStep5()}
+          {step === 2 && renderStep3()}
+          {step === 3 && renderStep4()}
+          {step === 4 && renderStep5()}
         </>
       )}
       
@@ -787,7 +1033,13 @@ const VerifierRegister = () => (
 )
 
 export const Register = () => {
-  const [role, setRole] = useState(null)
+  const [role, setRole] = useState(() => {
+    try {
+      return sessionStorage.getItem('registerRole') || null;
+    } catch {
+      return null;
+    }
+  })
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -821,6 +1073,13 @@ export const Register = () => {
       }
     }
   }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    try {
+      if (role) sessionStorage.setItem('registerRole', role);
+      else sessionStorage.removeItem('registerRole');
+    } catch {}
+  }, [role]);
 
   return (
     <Box py={10} bg="gray.50" minH="90vh" display="flex" alignItems="center" justifyContent="center">

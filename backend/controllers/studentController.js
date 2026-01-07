@@ -539,7 +539,38 @@ const saveSection = async (req, res) => {
   }
 };
 
+// Public meta endpoints (no auth required when mounted accordingly)
+const getMajors = async (req, res) => {
+  try {
+    const result = await pool.query('select name from majors order by name asc');
+    res.json(result.rows.map(r => r.name));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+const getMinors = async (req, res) => {
+  try {
+    const result = await pool.query('select name from minors order by name asc');
+    res.json(result.rows.map(r => r.name));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+const getSpecializations = async (req, res) => {
+  try {
+    const result = await pool.query('select name from specializations order by name asc');
+    res.json(result.rows.map(r => r.name));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 module.exports = {
   getSection,
-  saveSection
+  saveSection,
+  getMajors,
+  getMinors,
+  getSpecializations
 };

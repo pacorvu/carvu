@@ -22,8 +22,10 @@
  */
 
 import { Box, SimpleGrid, Input, Select, VStack, Heading, Flex, Button } from "@chakra-ui/react"
+import { useEffect } from "react"
 import { Field } from "../../ui/field"
 import { FaUserFriends, FaMobile, FaEnvelope } from "react-icons/fa"
+import { useAuth } from "../../../context/AuthContext"
 
 const SectionHeader = ({ title, icon: Icon }) => (
   <Flex align="center" gap={3} mb={6} borderBottom="1px solid" borderColor="gray.200" pb={2}>
@@ -38,6 +40,8 @@ const SectionHeader = ({ title, icon: Icon }) => (
 
 export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) => {
   const formData = data || {}
+  const { user } = useAuth()
+  const storageKey = `parentDetailsDraft:${user?.usn || 'anon'}`
 
   const INITIAL_PARENTS = [
     { 
@@ -67,6 +71,9 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
     if (!currentParents[index]) currentParents[index] = {}
     currentParents[index] = { ...currentParents[index], [field]: value }
     onUpdate({ ...formData, parents: currentParents })
+    try {
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: currentParents }))
+    } catch {}
   }
 
   const handleAddParent = () => {
@@ -80,13 +87,41 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
       phone_country_code: "+91",
       phone_number: ""
     }] })
+    try {
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: [...currentParents, { 
+        name: "", 
+        parent_type: "Guardian",
+        occupation: "",
+        organisation: "",
+        email: "",
+        phone_country_code: "+91",
+        phone_number: ""
+      }] }))
+    } catch {}
   }
 
   const handleRemoveParent = (index) => {
     const currentParents = (formData.parents && formData.parents.length > 0) ? [...formData.parents] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
     const newParents = currentParents.filter((_, i) => i !== index)
     onUpdate({ ...formData, parents: newParents })
+    try {
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: newParents }))
+    } catch {}
   }
+
+  useEffect(() => {
+    try {
+      if (!isEditing) return
+      const saved = sessionStorage.getItem(storageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && Array.isArray(parsed.parents) && parsed.parents.length > 0) {
+          onUpdate({ ...formData, parents: parsed.parents })
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <Box bg="white" p={8} borderRadius="xl" shadow="sm">
