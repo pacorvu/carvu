@@ -601,34 +601,52 @@ const saveSection = async (req, res) => {
           }
         }
       } else {
-        // Upsert logic for single record
+        // Non-array tables (personal, contact, career, etc.)
+        // Check if record exists first to avoid NOT NULL constraint violations on partial inserts
+        const checkRes = await client.query(`SELECT 1 FROM ${tableName} WHERE usn = $1`, [usn]);
+        const exists = checkRes.rows.length > 0;
+
         const colsRes = await client.query(
           "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
           [tableName]
         );
-        // Filter out id, timestamps, and USN (since we add USN manually)
+        // Filter out id, timestamps, and USN (since we handle USN manually)
         const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at' && c !== 'usn');
 
-        const insertCols = ['usn'];
-        const insertParams = [usn];
-        const placeholders = ['$1'];
-        const updateSets = [];
-        
-        for (const col of validCols) {
-          if (data[col] !== undefined) {
-            insertCols.push(col);
-            insertParams.push(data[col]);
-            placeholders.push(`$${insertParams.length}`);
-            updateSets.push(`"${col}" = $${insertParams.length}`);
+        if (exists) {
+          // UPDATE Logic
+          const updateSets = [];
+          const updateParams = [];
+          let paramIdx = 1;
+
+          for (const col of validCols) {
+            if (data[col] !== undefined) {
+              updateSets.push(`"${col}" = $${paramIdx}`);
+              updateParams.push(data[col]);
+              paramIdx++;
+            }
           }
-        }
-        
-        if (updateSets.length > 0) {
-          const sql = `
-            insert into ${tableName} ("${insertCols.join('", "')}") 
-            values (${placeholders.join(', ')})
-            on conflict (usn) do update set ${updateSets.join(', ')}, updated_at = now()
-          `;
+
+          if (updateSets.length > 0) {
+            updateParams.push(usn); // Add USN as the last parameter
+            const sql = `UPDATE ${tableName} SET ${updateSets.join(', ')}, updated_at = now() WHERE usn = $${paramIdx}`;
+            await client.query(sql, updateParams);
+          }
+        } else {
+          // INSERT Logic (Only for new records)
+          const insertCols = ['usn'];
+          const insertParams = [usn];
+          const placeholders = ['$1'];
+          
+          for (const col of validCols) {
+            if (data[col] !== undefined) {
+              insertCols.push(col);
+              insertParams.push(data[col]);
+              placeholders.push(`$${insertParams.length}`);
+            }
+          }
+          
+          const sql = `insert into ${tableName} ("${insertCols.join('", "')}") values (${placeholders.join(', ')})`;
           await client.query(sql, insertParams);
         }
       }
