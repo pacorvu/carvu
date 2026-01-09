@@ -1,104 +1,208 @@
 import React from "react";
 import {
+  Box,
   VStack,
   SimpleGrid,
   FormControl,
   FormLabel,
   Input,
+  Heading,
+  Text,
+  HStack,
+  Button,
+  IconButton,
+  Divider,
   useColorModeValue,
 } from "@chakra-ui/react";
+import { FaPlus, FaTrash } from "react-icons/fa";
 
-export const ContactLinksForm = ({ data = {}, onUpdate, isEditing }) => {
-  const bg = useColorModeValue("white", "gray.700");
+const Section = ({ title, bg, children }) => (
+  <Box
+    bg={bg}
+    borderRadius="xl"
+    boxShadow="sm"
+    p={{ base: 6, md: 8 }}
+    border="1px solid"
+    borderColor="gray.100"
+  >
+    <Heading size="md" mb={6} color="gray.700">{title}</Heading>
+    {children}
+  </Box>
+);
+
+export const ContactLinksForm = ({
+  data = {},
+  onUpdate,
+  isEditing,
+}) => {
+  const bg = "white"; // Clean white card
   const formData = data || {};
+  // const borderColor = isEditing ? "#d4a960" : "gray.200"; // No border in card mode
+  
+  const inputVariant = isEditing ? "outline" : "unstyled";
+  const inputPadding = isEditing ? 3 : 0;
+  const focusBorderColor = "#d4a960";
 
   const handleChange = (field, value) => {
     onUpdate({ ...formData, [field]: value });
   };
 
+  // Ensure links is always an array for rendering
+  const linksArray = Array.isArray(formData.links) ? formData.links : [];
+
+  const handleLinkChange = (idx, field, val) => {
+    const next = [...linksArray];
+    next[idx] = { ...next[idx], [field]: val };
+    handleChange("links", next);
+  };
+
+  const handleAddLink = () => {
+    handleChange("links", [...linksArray, { name: "", url: "" }]);
+  };
+
+  const handleRemoveLink = (idx) => {
+    const next = [...linksArray];
+    next.splice(idx, 1);
+    handleChange("links", next);
+  };
+
+  const isStudent = true; // For styling consistency if needed
+
+  const parsePhone = (raw) => {
+    const s = String(raw || "").trim();
+    if (!s) return { phoneCountryCode: "", phoneNumber: "" };
+    const m = /^\+?(\d{1,4})[\s-]*(.*)$/.exec(s);
+    if (!m) return { phoneCountryCode: "", phoneNumber: s };
+    const code = m[1] || "";
+    const rest = String(m[2] || "").replace(/[^\d]/g, "");
+    return { phoneCountryCode: code ? `+${code}` : "", phoneNumber: rest || "" };
+  };
+  const phoneCombined = (() => {
+    const cc = String(formData.phoneCountryCode || "").trim();
+    const pn = String(formData.phoneNumber || "").trim();
+    if (!cc && !pn) return "";
+    if (!cc) return pn;
+    const hasPlus = cc.startsWith("+");
+    return `${hasPlus ? cc : `+${cc}`} ${pn}`.trim();
+  })();
+
   return (
-    <VStack spacing={6} align="stretch" bg={bg} p={6} borderRadius="lg" boxShadow="sm">
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-        <FormControl>
-          <FormLabel>College Email</FormLabel>
-          <Input
-            value={formData.collegeEmail || ""}
-            onChange={(e) => handleChange("collegeEmail", e.target.value)}
-            variant="flushed"
-            type="email"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
+    <VStack spacing={8} align="stretch">
+      <Section title="Contact Details" bg={bg}>
+        <VStack spacing={6} align="stretch">
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8}>
+            <FormControl>
+              <FormLabel fontWeight="semibold" color="gray.600">College Email</FormLabel>
+              <Input
+                value={formData.collegeEmail || ""}
+                variant="unstyled"
+                type="email"
+                isReadOnly
+                color="gray.500"
+                _disabled={{ opacity: 1, cursor: "not-allowed" }}
+              />
+            </FormControl>
 
-        <FormControl>
-          <FormLabel>Personal Email</FormLabel>
-          <Input
-            value={formData.personalEmail || ""}
-            onChange={(e) => handleChange("personalEmail", e.target.value)}
-            variant="flushed"
-            type="email"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
+            <FormControl>
+              <FormLabel fontWeight="semibold" color="gray.600">Personal Email</FormLabel>
+              <Input
+                value={formData.personalEmail || ""}
+                onChange={(e) => handleChange("personalEmail", e.target.value)}
+                variant={inputVariant}
+                focusBorderColor={focusBorderColor}
+                px={inputPadding}
+                type="email"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
+              />
+            </FormControl>
 
-        <FormControl>
-          <FormLabel>Mobile Number</FormLabel>
-          <Input
-            value={formData.mobileNumber || ""}
-            onChange={(e) => handleChange("mobileNumber", e.target.value)}
-            variant="flushed"
-            type="tel"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
+            <FormControl>
+              <FormLabel fontWeight="semibold" color="gray.600">Phone</FormLabel>
+              <Input
+                value={phoneCombined}
+                onChange={(e) => {
+                  const p = parsePhone(e.target.value);
+                  const next = { ...formData, phoneCountryCode: p.phoneCountryCode || "", phoneNumber: p.phoneNumber || "" };
+                  onUpdate(next);
+                }}
+                variant={inputVariant}
+                focusBorderColor={focusBorderColor}
+                px={inputPadding}
+                type="tel"
+                placeholder={isEditing ? "+91 9999999004" : ""}
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
+              />
+            </FormControl>
+          </SimpleGrid>
+        </VStack>
+      </Section>
 
-        <FormControl>
-          <FormLabel>LinkedIn URL</FormLabel>
-          <Input
-            value={formData.linkedinUrl || ""}
-            onChange={(e) => handleChange("linkedinUrl", e.target.value)}
-            variant="flushed"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
+      <Section title="Links" bg={bg}>
+        <VStack spacing={4} align="stretch">
+          {isEditing && (
+             <HStack justify="flex-end">
+                <Button
+                  leftIcon={<FaPlus />}
+                  size="sm"
+                  variant="outline"
+                  colorScheme="orange"
+                  borderColor="#d4a960"
+                  color="#d4a960"
+                  _hover={{ bg: "#fffaf0" }}
+                  onClick={handleAddLink}
+                >
+                  Add Link
+                </Button>
+             </HStack>
+          )}
 
-        <FormControl>
-          <FormLabel>GitHub URL</FormLabel>
-          <Input
-            value={formData.githubUrl || ""}
-            onChange={(e) => handleChange("githubUrl", e.target.value)}
-            variant="flushed"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
-
-        <FormControl>
-          <FormLabel>Portfolio URL</FormLabel>
-          <Input
-            value={formData.portfolioUrl || ""}
-            onChange={(e) => handleChange("portfolioUrl", e.target.value)}
-            variant="flushed"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
-
-        <FormControl>
-          <FormLabel>Address</FormLabel>
-          <Input
-            value={formData.address || ""}
-            onChange={(e) => handleChange("address", e.target.value)}
-            variant="flushed"
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-          />
-        </FormControl>
-      </SimpleGrid>
+          <VStack spacing={4} align="stretch">
+            {linksArray.length === 0 && !isEditing && (
+                <Text color="gray.500" fontSize="sm">No links added.</Text>
+            )}
+            {linksArray.map((it, idx) => (
+              <HStack key={idx} spacing={4}>
+                <Input
+                  value={it.name || ""}
+                  onChange={(e) => handleLinkChange(idx, "name", e.target.value)}
+                  placeholder="Name (e.g., LinkedIn)"
+                  variant={inputVariant}
+                  focusBorderColor={focusBorderColor}
+                  px={inputPadding}
+                  isDisabled={!isEditing}
+                  w="30%"
+                  fontWeight="medium"
+                  autoComplete="off"
+                  _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
+                />
+                <Input
+                  value={it.url || ""}
+                  onChange={(e) => handleLinkChange(idx, "url", e.target.value)}
+                  placeholder="Link (https://...)"
+                  variant={inputVariant}
+                  focusBorderColor={focusBorderColor}
+                  px={inputPadding}
+                  isDisabled={!isEditing}
+                  color="blue.500"
+                  autoComplete="off"
+                  _disabled={{ opacity: 1, color: "blue.500", cursor: "pointer", textDecoration: "underline" }}
+                />
+                {isEditing && (
+                    <IconButton
+                      aria-label="Remove link"
+                      icon={<FaTrash />}
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={() => handleRemoveLink(idx)}
+                    />
+                )}
+              </HStack>
+            ))}
+          </VStack>
+        </VStack>
+      </Section>
     </VStack>
   );
 };

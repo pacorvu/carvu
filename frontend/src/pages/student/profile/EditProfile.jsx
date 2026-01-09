@@ -1,6 +1,6 @@
-import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter } from "@chakra-ui/react"
+import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, VStack, Input } from "@chakra-ui/react"
 import { StudentProfileLayout } from "../../../components/student/StudentProfileLayout"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useParams, useNavigate, useBlocker, useBeforeUnload } from "react-router-dom"
 import { StudentProfileService } from "../../../services/studentProfile.service"
 import { useAuth } from "../../../context/AuthContext"
@@ -33,25 +33,11 @@ export const EditProfile = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [majorOptions, setMajorOptions] = useState([])
+  const [minorOptions, setMinorOptions] = useState([])
+  const [specializationOptions, setSpecializationOptions] = useState([])
 
-  // Block navigation when editing
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isEditing && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  // Handle browser refresh/close
-  useBeforeUnload(
-    useCallback(
-      (event) => {
-        if (isEditing) {
-          event.preventDefault();
-          event.returnValue = "";
-        }
-      },
-      [isEditing]
-    )
-  );
+  const initialDataRef = useRef(null)
 
   // Map section URL param to internal data key
   const getSectionKey = (param) => {
@@ -76,6 +62,49 @@ export const EditProfile = () => {
 
   const currentSectionKey = getSectionKey(section)
 
+  const hasUnsavedChanges = useMemo(() => {
+    if (section === 'resume') return false
+    if (!initialDataRef.current || !data) return false
+    return JSON.stringify(initialDataRef.current) !== JSON.stringify(data)
+  }, [section, data])
+
+  // Block navigation when editing
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  // Handle browser refresh/close
+  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (hasUnsavedChanges) {
+          event.preventDefault();
+          event.returnValue = "";
+        }
+      },
+      [hasUnsavedChanges]
+    )
+  );
+
+  const allowEditMajor = useMemo(() => {
+    if (section !== 'personal') return false
+    const x = initialDataRef.current || {}
+    return !x.majorId && !x.majorName
+  }, [section])
+
+  const allowEditMinor = useMemo(() => {
+    if (section !== 'personal') return false
+    const x = initialDataRef.current || {}
+    return !x.minorId && !x.minorName
+  }, [section])
+
+  const allowEditSpecialization = useMemo(() => {
+    if (section !== 'personal') return false
+    const x = initialDataRef.current || {}
+    return !x.specializationId && !x.specializationName
+  }, [section])
+
   useEffect(() => {
     // Reset editing state when switching sections
     setIsEditing(false)
@@ -97,9 +126,38 @@ export const EditProfile = () => {
             if (section === 'resume') {
                 const fullProfile = await StudentProfileService.getFullProfile(usn)
                 setData(fullProfile)
+            } else if (section === 'personal') {
+                const [maj, min, spec] = await Promise.all([
+                  StudentProfileService.getMajors().catch(() => []),
+                  StudentProfileService.getMinors().catch(() => []),
+                  StudentProfileService.getSpecializations().catch(() => []),
+                ])
+                setMajorOptions(Array.isArray(maj) ? maj : [])
+                setMinorOptions(Array.isArray(min) ? min : [])
+                setSpecializationOptions(Array.isArray(spec) ? spec : [])
+
+                const sectionData = await StudentProfileService.getSection(usn, 'personal')
+                setData(sectionData || {})
+                initialDataRef.current = sectionData || {}
             } else {
                 const sectionData = await StudentProfileService.getSection(usn, currentSectionKey)
-                setData(sectionData || {})
+                
+                let finalData = sectionData || {}
+                // Ensure links is array for contact section
+                if (currentSectionKey === 'contact') {
+                    let links = finalData.links;
+                    if (!links) {
+                        links = [];
+                    } else if (!Array.isArray(links) && typeof links === 'object') {
+                        links = Object.entries(links).map(([k, v]) => ({ name: k, url: v }));
+                    } else if (!Array.isArray(links)) {
+                        links = [];
+                    }
+                    finalData.links = links;
+                }
+
+                setData(finalData)
+                initialDataRef.current = finalData
             }
         } catch (error) {
             console.error("Error fetching data:", error)
@@ -110,16 +168,15 @@ export const EditProfile = () => {
     }
 
     fetchData()
-  }, [section, currentSectionKey, navigate])
+  }, [section, currentSectionKey, navigate, usn])
 
-  const handleUpdate = (newData) => {
-      setData(newData)
-  }
+  const handleUpdate = (newData) => setData(newData)
 
   const handleSave = async () => {
       setSaving(true)
       try {
           await StudentProfileService.saveSection(usn, currentSectionKey, data)
+          initialDataRef.current = data
           alert("Changes saved successfully")
           setIsEditing(false)
           return true
@@ -133,7 +190,7 @@ export const EditProfile = () => {
   }
 
   const renderContent = () => {
-      if (loading || !data) {
+      if (loading || (section !== 'resume' && !data)) {
           return (
               <Center h="50vh">
                   <Spinner size="xl" color="#d4a960" />
@@ -143,7 +200,20 @@ export const EditProfile = () => {
 
       switch (section) {
           case 'personal':
-              return <PersonalInformationForm data={data} onUpdate={handleUpdate} isEditing={isEditing} />
+              return (
+                <PersonalInformationForm
+                  data={data}
+                  onUpdate={handleUpdate}
+                  isEditing={isEditing}
+                  mode="student"
+                  majorOptions={majorOptions}
+                  minorOptions={minorOptions}
+                  specializationOptions={specializationOptions}
+                  allowEditMajor={allowEditMajor}
+                  allowEditMinor={allowEditMinor}
+                  allowEditSpecialization={allowEditSpecialization}
+                />
+              )
           case 'contact':
               return <ContactLinksForm data={data} onUpdate={handleUpdate} isEditing={isEditing} />
           case 'family':
@@ -184,28 +254,29 @@ export const EditProfile = () => {
         {section !== 'resume' && !loading && (
             <HStack justifyContent="flex-end" mt={8} pb={10}>
                 {!isEditing ? (
-                    <Button 
-                        bg="#d4a960" 
-                        color="#20343c" 
-                        _hover={{ bg: "#c39850" }} 
-                        size="lg"
-                        onClick={() => setIsEditing(true)}
-                    >
-                        Edit
-                    </Button>
-                ) : (
-                    <Button 
-                        bg="#d4a960" 
-                        color="#20343c" 
-                        _hover={{ bg: "#c39850" }} 
-                        size="lg"
-                        isLoading={saving}
-                        loadingText="Saving..."
-                        onClick={handleSave}
-                    >
-                        Save Changes
-                    </Button>
-                )}
+                        <Button 
+                            bg="#d4a960" 
+                            color="#20343c" 
+                            _hover={{ bg: "#c39850" }} 
+                            size="lg"
+                            onClick={() => setIsEditing(true)}
+                        >
+                            Edit
+                        </Button>
+                    ) : (
+                        <Button 
+                            bg="#d4a960" 
+                            color="#20343c" 
+                            _hover={{ bg: "#c39850" }} 
+                            size="lg"
+                            isLoading={saving}
+                            loadingText="Saving..."
+                            onClick={handleSave}
+                        >
+                            Save Changes
+                        </Button>
+                    )
+                }
             </HStack>
         )}
 

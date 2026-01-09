@@ -38,8 +38,10 @@ const SectionHeader = ({ title, icon: Icon }) => (
   </Flex>
 )
 
-export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const formData = data || {}
+export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) => {
+  // If data is array, use it. If it's an object (legacy/error), try to use parents prop or empty array.
+  // Ideally data should be the array of parents from backend.
+  const parentsData = Array.isArray(data) ? data : (data?.parents || [])
   const { user } = useAuth()
   const storageKey = `parentDetailsDraft:${user?.usn || 'anon'}`
 
@@ -64,21 +66,21 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
     }
   ]
 
-  const parents = (formData.parents && formData.parents.length > 0) ? formData.parents : INITIAL_PARENTS
+  const parents = (parentsData.length > 0) ? parentsData : INITIAL_PARENTS
 
   const handleParentChange = (index, field, value) => {
-    const currentParents = (formData.parents && formData.parents.length > 0) ? [...formData.parents] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
+    const currentParents = (parentsData.length > 0) ? [...parentsData] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
     if (!currentParents[index]) currentParents[index] = {}
     currentParents[index] = { ...currentParents[index], [field]: value }
-    onUpdate({ ...formData, parents: currentParents })
+    onUpdate(currentParents)
     try {
-      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: currentParents }))
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify(currentParents))
     } catch {}
   }
 
   const handleAddParent = () => {
-    const currentParents = (formData.parents && formData.parents.length > 0) ? [...formData.parents] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
-    onUpdate({ ...formData, parents: [...currentParents, { 
+    const currentParents = (parentsData.length > 0) ? [...parentsData] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
+    const newParents = [...currentParents, { 
       name: "", 
       parent_type: "Guardian",
       occupation: "",
@@ -86,26 +88,19 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
       email: "",
       phone_country_code: "+91",
       phone_number: ""
-    }] })
+    }]
+    onUpdate(newParents)
     try {
-      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: [...currentParents, { 
-        name: "", 
-        parent_type: "Guardian",
-        occupation: "",
-        organisation: "",
-        email: "",
-        phone_country_code: "+91",
-        phone_number: ""
-      }] }))
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify(newParents))
     } catch {}
   }
 
   const handleRemoveParent = (index) => {
-    const currentParents = (formData.parents && formData.parents.length > 0) ? [...formData.parents] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
+    const currentParents = (parentsData.length > 0) ? [...parentsData] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
     const newParents = currentParents.filter((_, i) => i !== index)
-    onUpdate({ ...formData, parents: newParents })
+    onUpdate(newParents)
     try {
-      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify({ parents: newParents }))
+      if (isEditing) sessionStorage.setItem(storageKey, JSON.stringify(newParents))
     } catch {}
   }
 
@@ -115,8 +110,11 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
       const saved = sessionStorage.getItem(storageKey)
       if (saved) {
         const parsed = JSON.parse(saved)
-        if (parsed && Array.isArray(parsed.parents) && parsed.parents.length > 0) {
-          onUpdate({ ...formData, parents: parsed.parents })
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          onUpdate(parsed)
+        } else if (parsed && Array.isArray(parsed.parents)) {
+           // Handle legacy format in session storage
+           onUpdate(parsed.parents)
         }
       }
     } catch {}
@@ -157,13 +155,34 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
                         </Select>
                     </Field>
                     <Field label="Name" required>
-                        <Input value={parent.name || ""} onChange={(e) => handleParentChange(index, "name", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
+                        <Input 
+                            value={parent.name || ""} 
+                            onChange={(e) => handleParentChange(index, "name", e.target.value)} 
+                            variant="flushed" 
+                            autoComplete="name"
+                            isDisabled={!isEditing} 
+                            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                        />
                     </Field>
                     <Field label="Occupation">
-                        <Input value={parent.occupation || ""} onChange={(e) => handleParentChange(index, "occupation", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
+                        <Input 
+                            value={parent.occupation || ""} 
+                            onChange={(e) => handleParentChange(index, "occupation", e.target.value)} 
+                            variant="flushed" 
+                            autoComplete="organization-title"
+                            isDisabled={!isEditing} 
+                            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                        />
                     </Field>
                     <Field label="Organisation">
-                        <Input value={parent.organisation || ""} onChange={(e) => handleParentChange(index, "organisation", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
+                        <Input 
+                            value={parent.organisation || ""} 
+                            onChange={(e) => handleParentChange(index, "organisation", e.target.value)} 
+                            variant="flushed" 
+                            autoComplete="organization"
+                            isDisabled={!isEditing} 
+                            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                        />
                     </Field>
                     <Field label="Mobile Number" required>
                         <Flex gap={2}>
@@ -172,19 +191,31 @@ export const ParentDetailsForm = ({ data = {}, onUpdate, isEditing = false }) =>
                                 value={parent.phone_country_code || "+91"} 
                                 onChange={(e) => handleParentChange(index, "phone_country_code", e.target.value)} 
                                 variant="flushed" 
-                                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                                autoComplete="tel-country-code"
+                                isDisabled={!isEditing} 
+                                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                             />
                             <Input 
                                 type="tel" 
                                 value={parent.phone_number || ""} 
                                 onChange={(e) => handleParentChange(index, "phone_number", e.target.value)} 
                                 variant="flushed" 
-                                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                                autoComplete="tel"
+                                isDisabled={!isEditing} 
+                                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                             />
                         </Flex>
                     </Field>
                     <Field label="Email ID">
-                        <Input type="email" value={parent.email || ""} onChange={(e) => handleParentChange(index, "email", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
+                        <Input 
+                            type="email" 
+                            value={parent.email || ""} 
+                            onChange={(e) => handleParentChange(index, "email", e.target.value)} 
+                            variant="flushed" 
+                            autoComplete="email"
+                            isDisabled={!isEditing} 
+                            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                        />
                     </Field>
                 </SimpleGrid>
             </Box>

@@ -36,7 +36,7 @@ import {
 
 const navItems = [
   { label: "Personal Information", path: "/student/profile/personal", icon: FaUser },
-  { label: "Contact & Links", path: "/student/profile/contact", icon: FaAddressBook },
+  { label: "Contact Details", path: "/student/profile/contact", icon: FaAddressBook },
   { label: "Parent / Guardian Details", path: "/student/profile/family", icon: FaUsers },
   { label: "Career Overview", path: "/student/profile/career", icon: FaBriefcase },
   { label: "Education", path: "/student/profile/education", icon: FaGraduationCap },

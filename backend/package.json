@@ -8,7 +8,10 @@
     "start": "nodemon server.js",
     "seed:logins": "node seed_logins.js",
     "export:credentials": "node export_credentials.js",
-    "fix:emails": "node scripts/fix_personal_email_rvu_domain.js"
+    "fix:emails": "node scripts/fix_personal_email_rvu_domain.js",
+    "fix:emails:login": "node scripts/normalize_user_login_emails.js",
+    "fix:emails:student": "node scripts/normalize_student_emails.js",
+    "fix:emails:all": "node scripts/fix_personal_email_rvu_domain.js && node scripts/normalize_student_emails.js && node scripts/normalize_user_login_emails.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +26,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^6.9.8",
     "pg": "^8.16.3"
   },
   "devDependencies": {

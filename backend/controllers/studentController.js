@@ -2,7 +2,7 @@ const { pool } = require('../config/db');
 
 const tableMapping = {
   personal: 'students_personal_details',
-  contact: 'student_profile_communication',
+  contact: 'students_personal_details',
   family: 'student_parent_details',
   career: 'student_profile_details',
   education: 'student_education_history',
@@ -44,6 +44,7 @@ const columnMapping = {
       specializationId: 'specialization_id',
       majorId: 'major_id',
       minorId: 'minor_id',
+      isProfileLocked: 'is_profile_locked',
       gender: 'gender',
       languages: 'languages'
     },
@@ -60,6 +61,7 @@ const columnMapping = {
       specialization_id: 'specializationId',
       major_id: 'majorId',
       minor_id: 'minorId',
+      is_profile_locked: 'isProfileLocked',
       gender: 'gender',
       languages: 'languages'
     }
@@ -362,8 +364,12 @@ const mapData = (section, data, direction) => {
     const newItem = { ...item };
     for (const [key, val] of Object.entries(map)) {
       if (item[key] !== undefined) {
-        newItem[val] = item[key];
-        delete newItem[key];
+        if (key !== val) {
+          newItem[val] = item[key];
+          delete newItem[key];
+        } else {
+          newItem[key] = item[key];
+        }
       }
     }
     return newItem;
@@ -373,6 +379,59 @@ const mapData = (section, data, direction) => {
     return data.map(processItem);
   }
   return processItem(data);
+};
+
+const getPersonalPage = async (req, res) => {
+  try {
+    const { usn } = req.params;
+
+    const isOwner = req.user?.usn === usn;
+    const isAdmin = req.user?.role_name === 'admin' || req.user?.role_name === 'superadmin' || req.user?.role === 'admin' || req.user?.role === 'superadmin';
+    const isStudent = req.user?.role_name === 'student' || req.user?.role === 'student';
+
+    if (!isOwner && !isAdmin) {
+      console.warn(`Unauthorized access attempt by ${req.user?.usn || req.user?.id} to ${usn}`);
+      return res.status(403).json({ error: 'Unauthorized access to this profile' });
+    }
+
+    const result = await pool.query(
+      `select spd.*,
+              p.name as program_name,
+              mj.name as major_name,
+              mn.name as minor_name,
+              sz.name as specialization_name
+       from students_personal_details spd
+       left join programs p on p.id = spd.program_id
+       left join majors mj on mj.id = spd.major_id
+       left join minors mn on mn.id = spd.minor_id
+       left join specializations sz on sz.id = spd.specialization_id
+       where spd.usn = $1
+       limit 1`,
+      [usn]
+    );
+    const row = result.rows[0] || {};
+
+    const personal = mapData('personal', row, 'fromDb');
+    if (row.program_name !== undefined) personal.programName = row.program_name;
+    if (row.major_name !== undefined) personal.majorName = row.major_name;
+    if (row.minor_name !== undefined) personal.minorName = row.minor_name;
+    if (row.specialization_name !== undefined) personal.specializationName = row.specialization_name;
+
+    if (isOwner && isStudent) {
+      delete personal.created_at;
+      delete personal.updated_at;
+      delete personal.isProfileLocked;
+      delete personal.is_profile_locked;
+    }
+
+    res.json({
+      personal,
+      contact: mapData('contact', row, 'fromDb'),
+    });
+  } catch (e) {
+    console.error(`Get personal page error: ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
 };
 
 const getSection = async (req, res) => {
@@ -394,7 +453,38 @@ const getSection = async (req, res) => {
 
     if (section === 'full') {
       const fullProfile = {};
+
+      // 1. Fetch Personal & Contact Details with Joins (Programs, etc.)
+      const personalQuery = `
+        select spd.*,
+               p.name as program_name,
+               mj.name as major_name,
+               mn.name as minor_name,
+               sz.name as specialization_name
+        from students_personal_details spd
+        left join programs p on p.id = spd.program_id
+        left join majors mj on mj.id = spd.major_id
+        left join minors mn on mn.id = spd.minor_id
+        left join specializations sz on sz.id = spd.specialization_id
+        where spd.usn = $1
+      `;
+      const personalRes = await pool.query(personalQuery, [usn]);
+      const personalRow = personalRes.rows[0] || {};
+
+      // Map Personal
+      const personalData = mapData('personal', personalRow, 'fromDb');
+      if (personalRow.program_name) personalData.programName = personalRow.program_name;
+      if (personalRow.major_name) personalData.majorName = personalRow.major_name;
+      if (personalRow.minor_name) personalData.minorName = personalRow.minor_name;
+      if (personalRow.specialization_name) personalData.specializationName = personalRow.specialization_name;
+      
+      fullProfile.personal = personalData;
+      fullProfile.contact = mapData('contact', personalRow, 'fromDb');
+
+      // 2. Fetch other sections from tableMapping
       for (const [key, table] of Object.entries(tableMapping)) {
+        if (key === 'personal' || key === 'contact') continue;
+
         const isArray = arrayTables.includes(table);
         const query = `select * from ${table} where usn = $1`;
         const result = await pool.query(query, [usn]);
@@ -405,6 +495,28 @@ const getSection = async (req, res) => {
         
         fullProfile[key] = data;
       }
+
+      // 3. Add Placements and Job Offers (Not in tableMapping but part of full profile)
+      try {
+        const placementsRes = await pool.query(`
+          SELECT p.*, pd.job_type, pd.event_datetime, c.company_name, c.company_logo_link
+          FROM student_placement_process p
+          JOIN placements_drives pd ON p.placement_drive_id = pd.id
+          LEFT JOIN companies c ON pd.company_id = c.id
+          WHERE p.usn = $1
+          ORDER BY p.created_at DESC
+        `, [usn]);
+        fullProfile.placements = placementsRes.rows;
+
+        const offersRes = await pool.query('SELECT * FROM job_offers WHERE usn = $1', [usn]);
+        fullProfile.jobOffers = offersRes.rows;
+      } catch (err) {
+        console.error('Error fetching placements/offers for full profile:', err);
+        // Don't fail the whole request if these fail, just log
+        fullProfile.placements = [];
+        fullProfile.jobOffers = [];
+      }
+
       return res.json(fullProfile);
     }
 
@@ -434,6 +546,7 @@ const saveSection = async (req, res) => {
 
     const isOwner = req.user?.usn === usn;
     const isAdmin = req.user?.role_name === 'admin' || req.user?.role_name === 'superadmin' || req.user?.role === 'admin' || req.user?.role === 'superadmin';
+    const isStudent = req.user?.role_name === 'student' || req.user?.role === 'student';
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'Unauthorized modification of this profile' });
@@ -460,19 +573,15 @@ const saveSection = async (req, res) => {
         
         // 2. Insert new
         if (Array.isArray(data) && data.length > 0) {
+          // Get columns once, outside the loop
+          const colsRes = await client.query(
+            "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
+            [tableName]
+          );
+          // Filter out id, timestamps, and USN (since we add USN manually)
+          const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at' && c !== 'usn');
+          
           for (const item of data) {
-            // Filter out fields that are not columns? 
-            // Ideally we should query columns first. 
-            // For now, let's assume the frontend sends valid keys matching columns (except maybe 'id', 'created_at', etc.)
-            
-            // We need to get columns dynamically to be safe, or just try insert
-            // To be safe, let's get columns for the table once
-            const colsRes = await client.query(
-              "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
-              [tableName]
-            );
-            const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at');
-            
             const insertCols = ['usn'];
             const insertParams = [usn];
             const placeholders = ['$1'];
@@ -485,11 +594,10 @@ const saveSection = async (req, res) => {
               }
             }
             
-            // Add updated_at if it exists in schema (we filtered it out above to let DB handle default, but for update we might want to set it)
-            // Actually, let DB handle created_at/updated_at defaults if possible.
-            
-            const sql = `insert into ${tableName} ("${insertCols.join('", "')}") values (${placeholders.join(', ')})`;
-            await client.query(sql, insertParams);
+            if (insertCols.length > 1) { // Only insert if we have more than just USN
+              const sql = `insert into ${tableName} ("${insertCols.join('", "')}") values (${placeholders.join(', ')})`;
+              await client.query(sql, insertParams);
+            }
           }
         }
       } else {
@@ -498,7 +606,8 @@ const saveSection = async (req, res) => {
           "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
           [tableName]
         );
-        const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at');
+        // Filter out id, timestamps, and USN (since we add USN manually)
+        const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at' && c !== 'usn');
 
         const insertCols = ['usn'];
         const insertParams = [usn];
@@ -542,8 +651,8 @@ const saveSection = async (req, res) => {
 // Public meta endpoints (no auth required when mounted accordingly)
 const getMajors = async (req, res) => {
   try {
-    const result = await pool.query('select name from majors order by name asc');
-    res.json(result.rows.map(r => r.name));
+    const result = await pool.query('select id, name from majors order by name asc');
+    res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -551,8 +660,8 @@ const getMajors = async (req, res) => {
 
 const getMinors = async (req, res) => {
   try {
-    const result = await pool.query('select name from minors order by name asc');
-    res.json(result.rows.map(r => r.name));
+    const result = await pool.query('select id, name from minors order by name asc');
+    res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -560,14 +669,15 @@ const getMinors = async (req, res) => {
 
 const getSpecializations = async (req, res) => {
   try {
-    const result = await pool.query('select name from specializations order by name asc');
-    res.json(result.rows.map(r => r.name));
+    const result = await pool.query('select id, name from specializations order by name asc');
+    res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
 
 module.exports = {
+  getPersonalPage,
   getSection,
   saveSection,
   getMajors,

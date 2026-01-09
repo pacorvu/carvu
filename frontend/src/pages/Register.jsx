@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react"
 import { 
   Box, Container, VStack, Heading, Input, Button, Text, 
-  Flex, SimpleGrid, Textarea, Tabs, TabList, TabPanels, Tab, TabPanel, Badge
+  Flex, SimpleGrid, Textarea, Tabs, TabList, TabPanels, Tab, TabPanel, Badge,
+  InputGroup, InputRightElement, IconButton
 } from "@chakra-ui/react"
 import { Link as RouterLink, useNavigate } from "react-router-dom"
 import { 
   FaArrowLeft, FaArrowRight, FaCheck, 
-  FaUserGraduate, FaBuilding, FaUserTie, FaChalkboardTeacher
+  FaUserGraduate, FaBuilding, FaUserTie, FaChalkboardTeacher, FaEye, FaEyeSlash
 } from "react-icons/fa"
 import { Field } from "../components/ui/field"
 import { RoleCard } from "../components/RoleCard"
@@ -16,6 +17,18 @@ import { useAuth } from "../context/AuthContext"
 const Icon = ({ as, ...props }) => <Box as={as} {...props} />
 
 const StudentRegister = () => {
+  const { user, setSession } = useAuth()
+  const navigate = useNavigate()
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false)
+  
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'student' || user.role_name === 'student') navigate('/student-dashboard')
+      else navigate('/admin/dashboard') // Fallback for other roles
+    }
+  }, [user, navigate])
+
   const initialSaved = (() => {
     try {
       const raw = sessionStorage.getItem('studentRegisterState');
@@ -26,6 +39,8 @@ const StudentRegister = () => {
   })();
   const [step, setStep] = useState(initialSaved?.step ?? 1)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [dbStudent, setDbStudent] = useState(initialSaved?.dbStudent ?? null)
+  const [dbParents, setDbParents] = useState(initialSaved?.dbParents ?? [])
   const [formData, setFormData] = useState({
     // Step 1: USN & Name
     usn: "",
@@ -70,16 +85,12 @@ const StudentRegister = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   
-  const [siblings] = useState([])
   const [error, setError] = useState("")
   const [isUsnVerified, setIsUsnVerified] = useState(initialSaved?.isUsnVerified ?? false)
   const [otpSent, setOtpSent] = useState(initialSaved?.otpSent ?? false)
   const [otp, setOtp] = useState("")
   const [maskedEmail, setMaskedEmail] = useState(initialSaved?.maskedEmail ?? "")
   const [loading, setLoading] = useState(false)
-  const [majors, setMajors] = useState([])
-  const [minors, setMinors] = useState([])
-  const [specializations, setSpecializations] = useState([])
   const [personalOtpSent, setPersonalOtpSent] = useState(initialSaved?.personalOtpSent ?? false)
   const [personalOtp, setPersonalOtp] = useState("")
   const [isPersonalVerified, setIsPersonalVerified] = useState(initialSaved?.isPersonalVerified ?? false)
@@ -92,6 +103,8 @@ const StudentRegister = () => {
   const [parentOccupation, setParentOccupation] = useState("")
   const [parentEmail, setParentEmail] = useState("")
   const [parentTab, setParentTab] = useState(0)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [resendTimer, setResendTimer] = useState(0)
   const isValidGmail = (e) => {
     if (typeof e !== 'string') return false
     const v = e.trim().toLowerCase()
@@ -182,19 +195,63 @@ const StudentRegister = () => {
            setError("Student already registered. Please login.");
            setIsUsnVerified(false);
         } else {
-           const isRvu = data.email && String(data.email).toLowerCase().endsWith('@rvu.edu.in')
-           setFormData({ 
-             ...formData, 
-             name: data.name || "", 
-             email: isRvu ? "" : (data.email || ""),
-             rvuEmail: isRvu ? data.email : (formData.rvuEmail || ""),
+           const student = (data && typeof data.student === 'object' && data.student) ? data.student : null
+           const collegeEmail = data.email || student?.college_email || ""
+           const personalEmail = data.personalEmail || student?.personal_email || ""
+           const phoneNumber = data.phone || student?.phone_number || ""
+           const genderRaw = data.gender || student?.gender || ""
+           const dobRaw = data.dob || student?.date_of_birth || ""
+           const dobNormalized = typeof dobRaw === 'string' ? dobRaw.slice(0, 10) : ""
+
+           const isRvu = collegeEmail && String(collegeEmail).toLowerCase().endsWith('@rvu.edu.in')
+
+           const nextParents = Array.isArray(data.parents) ? data.parents : []
+           const byType = (t) =>
+             nextParents.find(p => String(p?.type || p?.parent_type || '').toLowerCase() === String(t).toLowerCase()) || null
+           const father = byType('Father')
+           const mother = byType('Mother')
+           const guardian = byType('Guardian')
+           const nextSavedParents = []
+           if (father?.name || father?.phone || father?.phone_number) nextSavedParents.push('Father')
+           if (mother?.name || mother?.phone || mother?.phone_number) nextSavedParents.push('Mother')
+           if (guardian?.name || guardian?.phone || guardian?.phone_number) nextSavedParents.push('Guardian')
+
+           setFormData((prev) => ({
+             ...prev,
+             name: data.name || "",
+             email: (personalEmail || (isRvu ? "" : (collegeEmail || ""))),
+             rvuEmail: isRvu ? collegeEmail : (prev.rvuEmail || ""),
              school: data.school || "",
-             program: data.program || ""
-           });
+             program: data.program || "",
+             contact: phoneNumber || prev.contact || "",
+             dob: dobNormalized || prev.dob || "",
+             gender: genderRaw || prev.gender || "",
+             fatherName: father?.name || prev.fatherName || "",
+             fatherContact: (father?.phone || father?.phone_number) || prev.fatherContact || "",
+             fatherOccupation: father?.occupation || prev.fatherOccupation || "",
+             fatherEmail: father?.email || prev.fatherEmail || "",
+             motherName: mother?.name || prev.motherName || "",
+             motherContact: (mother?.phone || mother?.phone_number) || prev.motherContact || "",
+             motherOccupation: mother?.occupation || prev.motherOccupation || "",
+             motherEmail: mother?.email || prev.motherEmail || "",
+             guardianName: guardian?.name || prev.guardianName || "",
+             guardianContact: (guardian?.phone || guardian?.phone_number) || prev.guardianContact || "",
+             guardianOccupation: guardian?.occupation || prev.guardianOccupation || "",
+             guardianEmail: guardian?.email || prev.guardianEmail || ""
+           }));
+           setDbStudent(student)
+           setDbParents(nextParents)
+
+           if (nextSavedParents.length) {
+             setSavedParents(nextSavedParents)
+             const order = ['Father', 'Mother', 'Guardian']
+             const nextIdx = order.findIndex(x => !nextSavedParents.includes(x))
+             if (nextIdx !== -1) setParentTab(nextIdx)
+           }
            
            // Mask email for display
-           if (data.email) {
-               const [local, domain] = data.email.split('@');
+           if (collegeEmail) {
+               const [local, domain] = String(collegeEmail).split('@');
                const masked = `${local[0]}***${local[local.length-1]}@${domain}`;
                setMaskedEmail(masked);
            } else {
@@ -219,6 +276,8 @@ const StudentRegister = () => {
     try {
       const toSave = {
         step,
+        dbStudent,
+        dbParents,
         formData,
         isUsnVerified,
         otpSent,
@@ -230,22 +289,61 @@ const StudentRegister = () => {
         parentTab
       };
       sessionStorage.setItem('studentRegisterState', JSON.stringify(toSave));
-    } catch {}
+    } catch (e) {
+      void e
+    }
   }, [step, formData, isUsnVerified, otpSent, maskedEmail, personalOtpSent, isPersonalVerified, selectedParentRole, savedParents, parentTab]);
 
-  const handleSendOtp = () => {
-    setOtpSent(true)
-    alert(`OTP sent to ${formData.email}: 123456`) // Demo OTP
-  }
+  const handleSendOtp = async () => {
+    if (!formData.usn || !formData.rvuEmail) { setError("USN and RVU Email required"); return; }
+    setOtpLoading(true)
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usn: formData.usn, email: formData.rvuEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send OTP");
 
-  const verifyOtpAndContinue = () => {
-    if (otp === "123456") { // Demo validation
       setError("")
-      setStep(2)
-    } else {
-      setError("Invalid OTP. Please try again.")
+      setOtpSent(true)
+      setResendTimer(30)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setOtpLoading(false)
     }
   }
+
+  const verifyOtpAndContinue = async () => {
+    if (!otp) { setError("Enter OTP"); return; }
+    setLoading(true)
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usn: String(formData.usn).toUpperCase(), email: String(formData.rvuEmail).toLowerCase(), otp })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Invalid OTP");
+      
+      setError("")
+      setStep(2)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!otpSent || resendTimer <= 0) return
+    const t = setInterval(() => {
+      setResendTimer((s) => s > 0 ? s - 1 : 0)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [otpSent, resendTimer])
 
   // Academic details step removed; no meta load needed
   const handleNext = () => {
@@ -275,39 +373,128 @@ const StudentRegister = () => {
     setStep(Math.max(1, step - 1))
   }
 
-  const handleSubmit = () => {
+  const handleSendPersonalOtp = async () => {
+    if (!formData.email || !isValidGmail(formData.email)) { setPersonalEmailError("Invalid Gmail address"); return; }
+    setOtpLoading(true)
+    try {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register/send-personal-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: formData.email })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to send OTP");
+        
+        setPersonalOtpSent(true)
+        // alert(`OTP sent to ${formData.email}`) // Optional: remove alert or keep for UX
+    } catch (e) {
+        setPersonalEmailError(e.message)
+    } finally {
+        setOtpLoading(false)
+    }
+  }
+
+  const handleVerifyPersonalOtp = async () => {
+      if (!personalOtp) { setPersonalEmailError("Enter OTP"); return; }
+      setOtpLoading(true)
+      try {
+          const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register/verify-personal-otp`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: formData.email, otp: personalOtp })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Invalid OTP");
+          
+          setIsPersonalVerified(true)
+          setPersonalEmailError("")
+      } catch (e) {
+          setPersonalEmailError(e.message)
+      } finally {
+          setOtpLoading(false)
+      }
+  }
+
+  const handleSubmit = async () => {
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       return
     }
+    
     const payload = {
       usn: String(formData.usn || '').toUpperCase(),
-      email: formData.email || null,
       rvuEmail: formData.rvuEmail || null,
-      password: formData.password || null
+      password: formData.password || null,
+      personalEmail: formData.email,
+      phone: formData.contact,
+      dob: formData.dob,
+      gender: formData.gender,
+      parents: (() => {
+        const out = []
+        if (savedParents.includes('Father')) {
+          out.push({
+            type: 'Father',
+            name: formData.fatherName || '',
+            occupation: formData.fatherOccupation || null,
+            organization: '',
+            email: formData.fatherEmail || null,
+            phone: formData.fatherContact || null
+          })
+        }
+        if (savedParents.includes('Mother')) {
+          out.push({
+            type: 'Mother',
+            name: formData.motherName || '',
+            occupation: formData.motherOccupation || null,
+            organization: '',
+            email: formData.motherEmail || null,
+            phone: formData.motherContact || null
+          })
+        }
+        if (savedParents.includes('Guardian')) {
+          out.push({
+            type: 'Guardian',
+            name: formData.guardianName || '',
+            occupation: formData.guardianOccupation || null,
+            organization: '',
+            email: formData.guardianEmail || null,
+            phone: formData.guardianContact || null
+          })
+        }
+        return out.filter(p => String(p.type || '').trim() && String(p.name || '').trim())
+      })()
     }
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register-student`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    })
-    .then(async (res) => {
-      const data = await res.json().catch(() => ({}))
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register-student`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
       if (!res.ok) {
         setError(data.error || "Registration failed")
         return
       }
+      
       setError("")
       setIsCompleted(true)
       try {
         sessionStorage.removeItem('studentRegisterState');
         sessionStorage.removeItem('registerRole');
-      } catch {}
-    })
-    .catch(() => {
+      } catch (e) {
+        void e
+      }
+      
+      if (data.ok && data.access) {
+        setSession(data.access, data.user || null)
+        navigate('/student-dashboard', { replace: true })
+      }
+    } catch (e) {
+      void e
       setError("Connection error. Please try again.")
-    })
+    }
   }
 
   const inputStyle = {
@@ -351,19 +538,49 @@ const StudentRegister = () => {
                         <Text fontSize="xs" color="gray.500">Registered Email</Text>
                         <Text fontWeight="medium" color="gray.700">{maskedEmail}</Text>
                     </Box>
+                    <Box>
+                        <Text fontSize="xs" color="gray.500">School</Text>
+                        <Text fontWeight="medium" color="gray.700">{formData.school || "—"}</Text>
+                    </Box>
+                    <Box>
+                        <Text fontSize="xs" color="gray.500">Program</Text>
+                        <Text fontWeight="medium" color="gray.700">{formData.program || "—"}</Text>
+                    </Box>
                 </SimpleGrid>
             </Box>
 
             {!otpSent ? (
-                 <Button bg="#20343c" color="white" width="full" _hover={{ bg: "#1a2b32" }} onClick={handleSendOtp}>
-                    Send OTP <Icon as={FaArrowRight} ml={2} />
-                </Button>
+              <Button 
+                bg="#20343c" 
+                color="white" 
+                width="full" 
+                _hover={{ bg: "#1a2b32" }} 
+                onClick={handleSendOtp}
+                isLoading={otpLoading}
+                loadingText="Sending..."
+                _disabled={{ bg: "gray.300", cursor: "not-allowed" }}
+              >
+                Send OTP <Icon as={FaArrowRight} ml={2} />
+              </Button>
             ) : (
                 <VStack gap={4} align="stretch">
-                    <Text fontSize="sm" color="green.600" bg="green.50" p={2} borderRadius="md" border="1px solid" borderColor="green.200">
+                    <Flex gap={3} align="center">
+                      <Text fontSize="sm" color="green.600" bg="green.50" p={2} borderRadius="md" border="1px solid" borderColor="green.200" flex={1}>
                         <Icon as={FaCheck} display="inline" mr={2} />
                         OTP sent successfully
-                    </Text>
+                      </Text>
+                      <Button 
+                        variant="outline" 
+                        onClick={handleSendOtp} 
+                        isDisabled={resendTimer > 0 || otpLoading}
+                        _hover={{ bg: "gray.50" }}
+                        _disabled={{ bg: "gray.100", color: "gray.400", cursor: "not-allowed" }}
+                        borderColor="#20343c" 
+                        color="#20343c"
+                      >
+                        {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                      </Button>
+                    </Flex>
                     
                     <Field label="Enter OTP" errorText={error}>
                         <Input 
@@ -433,8 +650,8 @@ const StudentRegister = () => {
             borderColor="gray.300"
           >
             <option value="">Select</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
             <option value="Other">Other</option>
           </Box>
         </Field>
@@ -464,11 +681,8 @@ const StudentRegister = () => {
               width="full" 
               borderRadius="md"
               _hover={{ bg: "#1a2b32" }} 
-              onClick={() => {
-                if (!isValidGmail(formData.email)) { setPersonalEmailError("Invalid Gmail address"); return; }
-                setPersonalOtpSent(true)
-                alert(`OTP sent to ${formData.email}: 123456`)
-              }}
+              onClick={handleSendPersonalOtp}
+              isLoading={otpLoading}
             >
               Send OTP to Personal Email
             </Button>
@@ -493,16 +707,10 @@ const StudentRegister = () => {
                 width="full" 
                 borderRadius="md"
                 _hover={{ bg: "#1a2b32" }} 
-                onClick={() => {
-                  if (personalOtp === "123456") {
-                    setError("")
-                    setIsPersonalVerified(true)
-                  } else {
-                    setError("Invalid OTP. Please try again.")
-                  }
-                }}
+                onClick={handleVerifyPersonalOtp}
+                isLoading={otpLoading}
               >
-                Verify Personal Email
+                Verify Personal Email <Icon as={FaArrowRight} ml={2} />
               </Button>
             </VStack>
           )}
@@ -520,7 +728,7 @@ const StudentRegister = () => {
 
       <Flex gap={4} mt={4}>
         <Button variant="outline" onClick={handleBack} borderColor="#20343c" color="#20343c" _hover={{ bg: "gray.50" }}>Back</Button>
-        <Button bg="#20343c" color="white" flex={1} _hover={{ bg: "#1a2b32" }} onClick={handleNext}>Next</Button>
+        <Button bg="#20343c" color="white" flex={1} _hover={{ bg: "#1a2b32" }} onClick={handleNext}>Save & Next</Button>
       </Flex>
     </VStack>
   )
@@ -547,7 +755,7 @@ const StudentRegister = () => {
           </Tab>
         </TabList>
         <TabPanels>
-          {['Father','Mother','Guardian'].map((role, idx) => (
+          {['Father','Mother','Guardian'].map((role) => (
             <TabPanel key={role}>
               <Box p={4} borderWidth="1px" borderRadius="md" borderColor="gray.200" bg="gray.50">
                 <Text fontWeight="bold" mb={3} color="#20343c">{role} Details</Text>
@@ -605,7 +813,7 @@ const StudentRegister = () => {
       {savedParents.length > 0 && (
         <Box p={3} borderWidth="1px" borderRadius="md" borderColor="green.200" bg="green.50">
           <Text fontSize="sm" color="green.700">
-            {savedParents.map((r, i) => `${r} details added`).join(' • ')}
+            {savedParents.map((r) => `${r} details added`).join(' • ')}
           </Text>
         </Box>
       )}
@@ -622,11 +830,49 @@ const StudentRegister = () => {
       <Heading size="md" color="#20343c">Step 4: Set Password</Heading>
       
       <Field label="Password" errorText={error && error.includes("Password") ? error : null}>
-        <Input type="password" name="password" value={formData.password} onChange={handleChange} {...inputStyle} color="gray.700" />
+        <InputGroup>
+          <Input
+            type={isPasswordVisible ? "text" : "password"}
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            {...inputStyle}
+            color="gray.700"
+            pr="3rem"
+          />
+          <InputRightElement>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+              icon={<Icon as={isPasswordVisible ? FaEyeSlash : FaEye} />}
+              onClick={() => setIsPasswordVisible((v) => !v)}
+            />
+          </InputRightElement>
+        </InputGroup>
       </Field>
       
       <Field label="Confirm Password" errorText={error && error.includes("Password") ? error : null}>
-        <Input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} {...inputStyle} color="gray.700" />
+        <InputGroup>
+          <Input
+            type={isConfirmPasswordVisible ? "text" : "password"}
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            {...inputStyle}
+            color="gray.700"
+            pr="3rem"
+          />
+          <InputRightElement>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              aria-label={isConfirmPasswordVisible ? "Hide confirm password" : "Show confirm password"}
+              icon={<Icon as={isConfirmPasswordVisible ? FaEyeSlash : FaEye} />}
+              onClick={() => setIsConfirmPasswordVisible((v) => !v)}
+            />
+          </InputRightElement>
+        </InputGroup>
       </Field>
 
       <Flex gap={4} mt={4}>
@@ -1078,7 +1324,9 @@ export const Register = () => {
     try {
       if (role) sessionStorage.setItem('registerRole', role);
       else sessionStorage.removeItem('registerRole');
-    } catch {}
+    } catch (e) {
+      void e
+    }
   }, [role]);
 
   return (

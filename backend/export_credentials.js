@@ -32,9 +32,7 @@ async function main() {
       'id',
       'role_id',
       'role_name',
-      'rvu_email',
-      'email',
-      'personal_email',
+      'mail_id',
       'password'
     ].join(',');
     const lines = [header];
@@ -53,11 +51,9 @@ async function main() {
         row.id ?? '',
         row.role_id ?? '',
         roleName ?? '',
-        row.rvu_email ?? '',
-        row.email ?? '',
-        row.personal_email ?? row.personal_mail ?? '',
+        row.mail_id ?? row.email ?? '',
         passwordText
-      ].map(v => String(v).replace(/"/g, '""')).map(v => `"${v}"`).join(',');
+      ].map(v => String(v).replace(/\"/g, '\"\"')).map(v => `\"${v}\"`).join(',');
       lines.push(line);
     }
     fs.writeFileSync(outPath, lines.join('\n'), 'utf8');
@@ -69,4 +65,3 @@ async function main() {
 }
 
 main();
-

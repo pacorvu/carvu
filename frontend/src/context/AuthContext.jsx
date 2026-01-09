@@ -115,12 +115,21 @@ export const AuthProvider = ({ children }) => {
     // Optional: Clear other app state if needed
   };
 
+  const setSession = (access, extraUser) => {
+    const u = handleToken(access);
+    if (extraUser) {
+      setUser(prev => ({ ...prev, ...extraUser }));
+    }
+    return u;
+  };
+
   const value = {
     user,
     isAuthenticated,
     loading,
     login,
     logout,
+    setSession,
     isAdmin: user?.role === 'admin' || user?.role === 'superadmin',
     isSuperAdmin: user?.role === 'superadmin',
     userRole: user?.role

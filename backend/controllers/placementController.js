@@ -98,7 +98,7 @@ const getStudentProcess = async (req, res) => {
 
     const query = `
       SELECT p.*, pd.job_type, pd.event_datetime, c.company_name, c.company_logo_link
-      FROM process p
+      FROM student_placement_process p
       JOIN placements_drives pd ON p.placement_drive_id = pd.id
       LEFT JOIN companies c ON pd.company_id = c.id
       WHERE p.usn = $1
@@ -139,7 +139,7 @@ const registerForDrive = async (req, res) => {
     }
 
     // Check if already registered
-    const checkQuery = 'SELECT * FROM process WHERE usn = $1 AND placement_drive_id = $2';
+    const checkQuery = 'SELECT * FROM student_placement_process WHERE usn = $1 AND placement_drive_id = $2';
     const checkResult = await pool.query(checkQuery, [usn, driveId]);
 
     if (checkResult.rows.length > 0) {
@@ -148,7 +148,7 @@ const registerForDrive = async (req, res) => {
 
     // Insert registration
     const insertQuery = `
-      INSERT INTO process (
+      INSERT INTO student_placement_process (
         placement_drive_id, usn, registration_status, 
         approved_status, oa_status, gd_status, technical_round_status, 
         interview_status, hr_round_status, final_select_status, 
@@ -245,8 +245,8 @@ const getAllUsers = async (req, res) => {
     const query = `
       SELECT 
         ul.id, 
-        COALESCE(spd.full_name, split_part(COALESCE(ul.rvu_email, ul.personal_email), '@', 1)) as name,
-        COALESCE(ul.rvu_email, ul.personal_email) as email,
+        COALESCE(spd.full_name, split_part(COALESCE(ul.mail, ul.email), '@', 1)) as name,
+        COALESCE(ul.mail, ul.email) as email,
         r.name as role,
         ul.created_at,
         ul.usn

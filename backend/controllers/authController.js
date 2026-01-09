@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../config/db');
+const nodemailer = require('nodemailer');
 
 function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
 function uuid() { return crypto.randomUUID(); }
@@ -21,38 +22,62 @@ async function getLoginTable() {
   return loginTableCache;
 }
 
+let studentEmailColCache = undefined;
+async function getStudentEmailColumn() {
+  if (studentEmailColCache !== undefined) return studentEmailColCache;
+  try {
+    const colsRes = await pool.query(
+      "select column_name from information_schema.columns where table_schema='public' and table_name='students_personal_details'"
+    );
+    const cols = new Set(colsRes.rows.map(r => r.column_name));
+    for (const c of ['rvu_email', 'college_email', 'email', 'mail']) {
+      if (cols.has(c)) {
+        studentEmailColCache = c;
+        return c;
+      }
+    }
+    studentEmailColCache = null;
+    return null;
+  } catch {
+    studentEmailColCache = null;
+    return null;
+  }
+}
+
 async function ensureAuthTables() {
   try {
     const fkCheck = await pool.query(
       "select table_name from information_schema.tables where table_schema='public' and table_name in ('user_logins','user_login') order by table_name"
     );
     const fkTable = fkCheck.rows.length ? fkCheck.rows[0].table_name : 'user_login';
-    const fkSql = `
-      create table if not exists auth_refresh_tokens (
-        id uuid primary key default gen_random_uuid(),
-        user_login_id bigint not null references ${fkTable}(id) on delete cascade,
+    await pool.query(`
+      create table if not exists public.auth_refresh_tokens (
+        id uuid not null default gen_random_uuid(),
+        user_login_id bigint not null,
         token_hash text not null,
         jti uuid not null,
-        expires_at timestamptz not null,
-        revoked_at timestamptz,
-        replaced_by uuid,
-        user_agent text,
-        ip text,
-        created_at timestamptz not null default now()
-      )`;
-    await pool.query(`
-      ${fkSql}
+        expires_at timestamp with time zone not null,
+        revoked_at timestamp with time zone null,
+        replaced_by uuid null,
+        user_agent text null,
+        ip text null,
+        created_at timestamp with time zone not null default now(),
+        constraint auth_refresh_tokens_pkey primary key (id),
+        constraint unique_user_jti unique (user_login_id, jti),
+        constraint auth_refresh_tokens_user_login_id_fkey foreign key (user_login_id) references public.${fkTable} (id) on delete cascade
+      )
     `);
-    await pool.query(`create index if not exists idx_auth_refresh_tokens_user_login_id on auth_refresh_tokens(user_login_id)`);
-    await pool.query(`create index if not exists idx_auth_refresh_tokens_token_hash on auth_refresh_tokens(token_hash)`);
-  } catch (e) {
+    await pool.query(`create index if not exists idx_auth_refresh_tokens_user_login_id on public.auth_refresh_tokens using btree (user_login_id)`);
+    await pool.query(`create index if not exists idx_auth_refresh_tokens_token_hash on public.auth_refresh_tokens using btree (token_hash)`);
+
     try {
-      await pool.query(`create table if not exists auth_refresh_tokens (id uuid primary key, user_login_id bigint not null, token_hash text not null, jti uuid not null, expires_at timestamptz not null, revoked_at timestamptz, replaced_by uuid, user_agent text, ip text, created_at timestamptz not null default now())`);
-      await pool.query(`create index if not exists idx_auth_refresh_tokens_user_login_id on auth_refresh_tokens(user_login_id)`);
-      await pool.query(`create index if not exists idx_auth_refresh_tokens_token_hash on auth_refresh_tokens(token_hash)`);
-    } catch (e2) {
-      console.error(`Failed to ensure auth tables: ${e2.message}`);
-    }
+      await pool.query(`alter table public.auth_refresh_tokens add constraint unique_user_jti unique (user_login_id, jti)`);
+    } catch {}
+    try {
+      await pool.query(`alter table public.auth_refresh_tokens add constraint auth_refresh_tokens_user_login_id_fkey foreign key (user_login_id) references public.${fkTable} (id) on delete cascade`);
+    } catch {}
+  } catch (e) {
+    console.error(`Failed to ensure auth tables: ${e.message}`);
   }
 }
 
@@ -66,7 +91,7 @@ async function findUserByEmail(email) {
     const cols = colsRes.rows.map(r => r.column_name);
     const checks = [];
     const params = [];
-    for (const c of ['rvu_email','email','personal_email','personal_mail']) {
+    for (const c of ['mail','email','rvu_email','personal_email','personal_mail']) {
       if (cols.includes(c)) {
         checks.push(`"${c}" = $${params.length + 1}`);
         params.push(email);
@@ -100,13 +125,27 @@ function parseTtl(s) {
   return n * 24 * 60 * 60 * 1000;
 }
 
-function setRefreshCookie(res, raw) {
-  res.cookie('refresh_token', raw, {
+function refreshCookieOptions() {
+  const sameSiteRaw = String(process.env.COOKIE_SAMESITE || 'lax').toLowerCase().trim();
+  const sameSite = (sameSiteRaw === 'none' || sameSiteRaw === 'lax' || sameSiteRaw === 'strict') ? sameSiteRaw : 'lax';
+  const secureRaw = String(process.env.COOKIE_SECURE || '').toLowerCase().trim();
+  const secure = secureRaw === 'true' || process.env.NODE_ENV === 'production';
+  return {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
+    sameSite,
+    secure,
     path: '/',
-  });
+  };
+}
+
+function setRefreshCookie(res, raw, expiresAt) {
+  const opts = refreshCookieOptions();
+  if (expiresAt) opts.expires = expiresAt;
+  res.cookie('refresh_token', raw, opts);
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie('refresh_token', refreshCookieOptions());
 }
 
 const login = async (req, res) => {
@@ -115,19 +154,29 @@ const login = async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'email and password required' });
     const user = await findUserByEmail(email);
     if (!user) return res.status(401).json({ error: 'invalid credentials' });
+    const roleName = user.role || user.role_name;
+    const provided = String(email).toLowerCase();
+    const mailId = (user.mail || user.email || '').toLowerCase();
+    if (roleName === 'student') {
+      if (!mailId || provided !== mailId || !provided.endsWith('@rvu.edu.in')) {
+        return res.status(401).json({ error: 'Use RVU email (@rvu.edu.in) to login' });
+      }
+    } else if (roleName === 'alumni') {
+      // Alumni can login with any email; no domain restriction
+    }
     let ok = false;
     if (user.password_hash) ok = await bcrypt.compare(password, user.password_hash);
     else if (user.password) ok = password === user.password;
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
     const access = signAccess(user);
     const r = newRefresh();
-    const exp = new Date(Date.now() + (parseTtl(process.env.JWT_REFRESH_EXPIRE || '30d'))).toISOString();
+    const expDate = new Date(Date.now() + (parseTtl(process.env.JWT_REFRESH_EXPIRE || '30d')));
     await pool.query(
       'insert into auth_refresh_tokens (user_login_id, token_hash, jti, expires_at, user_agent, ip) values ($1,$2,$3,$4,$5,$6)',
-      [user.id, r.hash, r.jti, exp, req.headers['user-agent'] || null, req.ip || null]
+      [user.id, r.hash, r.jti, expDate.toISOString(), req.headers['user-agent'] || null, req.ip || null]
     );
-    setRefreshCookie(res, r.raw);
-    res.json({ access, user: { email: user.rvu_email || user.email, role_id: user.role_id, usn: user.usn } });
+    setRefreshCookie(res, r.raw, expDate);
+    res.json({ access, user: { email: user.mail || user.email, role_id: user.role_id, usn: user.usn } });
   } catch (e) {
     console.error(`Login error: ${e.message}`);
     res.status(500).json({ error: e.message });
@@ -135,49 +184,62 @@ const login = async (req, res) => {
 };
 
 const refresh = async (req, res) => {
+  const client = await pool.connect();
   try {
     const raw = req.cookies?.refresh_token;
-    if (!raw) {
-      console.log('Refresh failed: No refresh token in cookies', req.cookies);
-      return res.status(401).json({ error: 'no refresh' });
-    }
+    if (!raw) return res.status(401).json({ error: 'no refresh' });
+
     const hash = sha256(raw);
     const loginTable = await getLoginTable();
-    // Use explicit aliasing to avoid ID collision between token ID (uuid) and user ID (bigint)
-    const q = await pool.query(
+
+    await client.query('begin');
+    const q = await client.query(
       `select art.id as refresh_token_id, art.user_login_id, ul.* 
        from auth_refresh_tokens art 
        join ${loginTable} ul on ul.id=art.user_login_id 
-       where art.token_hash=$1 and (art.revoked_at is null) and art.expires_at > now() 
-       limit 1`,
+       where art.token_hash=$1 and art.revoked_at is null and art.expires_at > now() 
+       limit 1
+       for update`,
       [hash]
     );
     if (!q.rows.length) {
-      console.log('Refresh failed: Token not found or invalid/expired', { hash });
+      await client.query('rollback');
+      clearRefreshCookie(res);
       return res.status(401).json({ error: 'invalid refresh' });
     }
+
     const row = q.rows[0];
-    
-    // row contains user details for signAccess (it expects .id to be user id usually, but let's check signAccess)
-    // signAccess uses: user.id, user.role_id, user.role/role_name, user.token_version, user.usn
-    // row.id is from ul.* (user id), so that's fine. 
-    // Wait, if I select ul.*, row.id WILL be user id.
-    // BUT I need the refresh token ID for the update query.
-    
     const access = signAccess(row);
+
     const r = newRefresh();
-    const exp = new Date(Date.now() + (parseTtl(process.env.JWT_REFRESH_EXPIRE || '30d'))).toISOString();
-    
-    await pool.query('update auth_refresh_tokens set revoked_at=now(), replaced_by=$1 where id=$2', [r.jti, row.refresh_token_id]);
-    await pool.query(
-      'insert into auth_refresh_tokens (user_login_id, token_hash, jti, expires_at, user_agent, ip) values ($1,$2,$3,$4,$5,$6)',
-      [row.user_login_id, r.hash, r.jti, exp, req.headers['user-agent'] || null, req.ip || null]
+    const newId = uuid();
+    const expDate = new Date(Date.now() + (parseTtl(process.env.JWT_REFRESH_EXPIRE || '30d')));
+
+    const upd = await client.query(
+      'update auth_refresh_tokens set revoked_at=now(), replaced_by=$1 where id=$2 and revoked_at is null',
+      [newId, row.refresh_token_id]
     );
-    setRefreshCookie(res, r.raw);
+    if (upd.rowCount !== 1) {
+      await client.query('rollback');
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'invalid refresh' });
+    }
+
+    await client.query(
+      'insert into auth_refresh_tokens (id, user_login_id, token_hash, jti, expires_at, user_agent, ip) values ($1,$2,$3,$4,$5,$6,$7)',
+      [newId, row.user_login_id, r.hash, r.jti, expDate.toISOString(), req.headers['user-agent'] || null, req.ip || null]
+    );
+    await client.query('commit');
+
+    setRefreshCookie(res, r.raw, expDate);
     res.json({ access });
   } catch (e) {
+    try { await client.query('rollback'); } catch {}
     console.error(`Refresh error: ${e.message}`);
+    clearRefreshCookie(res);
     res.status(401).json({ error: 'refresh failed' });
+  } finally {
+    client.release();
   }
 };
 
@@ -187,141 +249,345 @@ const logout = async (req, res) => {
     const hash = sha256(raw);
     await pool.query('update auth_refresh_tokens set revoked_at=now() where token_hash=$1', [hash]);
   }
-  res.clearCookie('refresh_token');
+  clearRefreshCookie(res);
   res.json({ ok: true });
 };
 
-const registerStudent = async (req, res) => {
+const sendRegistrationOtp = async (req, res) => {
   try {
-    const { usn, email, rvuEmail, password } = req.body || {};
-    if (!usn || !password) return res.status(400).json({ error: 'USN and password required' });
+    let { usn, email } = req.body || {};
+    usn = String(usn || '').toUpperCase();
+    email = String(email || '').toLowerCase();
+    if (!usn || !email) return res.status(400).json({ error: 'USN and email required' });
+    if (!email.endsWith('@rvu.edu.in')) return res.status(400).json({ error: 'Email must end with @rvu.edu.in' });
+    
+    // Verify USN exists in student records
+    const pr = await pool.query('select usn from students_personal_details where usn=$1 limit 1', [usn]);
+    if (!pr.rows.length) return res.status(404).json({ error: 'USN not found' });
+    
+    // Check if already registered
     const loginTable = await getLoginTable();
-    const colsRes = await pool.query(
-      "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
-      [loginTable]
-    );
-    const cols = colsRes.rows.map(r => r.column_name);
-    const rolesColsRes = await pool.query(
-      "select column_name from information_schema.columns where table_schema='public' and table_name='roles'"
-    );
-    const rolesCols = rolesColsRes.rows.map(r => r.column_name);
-    const idCol = rolesCols.includes('id') ? 'id' : (rolesCols.includes('role_id') ? 'role_id' : null);
-    const nameCol = rolesCols.includes('name') ? 'name' : (rolesCols.includes('role_name') ? 'role_name' : (rolesCols.includes('role') ? 'role' : null));
-    let roleId = null;
-    if (idCol && nameCol) {
-      const r = await pool.query(`select ${idCol} as id from roles where ${nameCol}=$1 limit 1`, ['student']);
-      roleId = r.rows.length ? r.rows[0].id : null;
-    }
-    const emailCols = ['rvu_email','email','personal_email','personal_mail'].filter(c => cols.includes(c));
-    const whereChecks = [];
-    const paramsChecks = [];
-    if (cols.includes('usn')) { whereChecks.push(`usn = $${paramsChecks.length + 1}`); paramsChecks.push(usn); }
-    if (emailCols.length && email) {
-      whereChecks.push(emailCols.map(c => `"${c}" = $${paramsChecks.length + 1}`).join(' or '));
-      paramsChecks.push(email);
-    }
-    const exists = whereChecks.length
-      ? await pool.query(`select 1 from ${loginTable} where ${whereChecks.join(' or ')} limit 1`, paramsChecks)
-      : { rows: [] };
-    if (exists.rows.length) return res.status(400).json({ error: 'User already exists' });
-    const insertCols = [];
-    const insertParams = [];
-    const placeholders = [];
-    if (cols.includes('usn')) { insertCols.push('usn'); insertParams.push(usn); }
-    if (roleId && cols.includes('role_id')) { insertCols.push('role_id'); insertParams.push(roleId); }
-    else if (cols.includes('role') || cols.includes('role_name')) {
-      const rn = cols.includes('role') ? 'role' : 'role_name';
-      insertCols.push(rn); insertParams.push('student');
-    }
-    if (email) {
-      const eCol = cols.includes('personal_email') ? 'personal_email'
-        : (cols.includes('personal_mail') ? 'personal_mail'
-        : (cols.includes('email') ? 'email'
-        : (cols.includes('rvu_email') ? 'rvu_email' : null)));
-      if (eCol) { insertCols.push(eCol); insertParams.push(email); }
-    } else if (rvuEmail && cols.includes('rvu_email')) {
-      insertCols.push('rvu_email'); insertParams.push(rvuEmail);
-    }
-    if (cols.includes('password_hash')) {
-      const hashed = await bcrypt.hash(password, 10);
-      insertCols.push('password_hash'); insertParams.push(hashed);
-    } else if (cols.includes('password')) {
-      insertCols.push('password'); insertParams.push(password);
-    }
-    if (cols.includes('is_active')) { insertCols.push('is_active'); insertParams.push(true); }
-    if (cols.includes('created_at')) { insertCols.push('created_at'); insertParams.push(new Date().toISOString()); }
-    if (cols.includes('updated_at')) { insertCols.push('updated_at'); insertParams.push(new Date().toISOString()); }
-    for (let i = 0; i < insertParams.length; i++) placeholders.push(`$${i + 1}`);
-    if (!insertCols.length) return res.status(500).json({ error: 'Unable to register user (no insertable columns)' });
+    const existingUser = await pool.query(`select id from ${loginTable} where usn=$1`, [usn]);
+    if (existingUser.rows.length) return res.status(400).json({ error: 'Student already registered' });
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const ttlMin = Number(process.env.OTP_TTL_MINUTES || 10);
+
+    // Insert into user_otp_verification
     await pool.query(
-      `insert into ${loginTable} (${insertCols.map(c => `"${c}"`).join(', ')}) values (${placeholders.join(', ')})`,
-      insertParams
+      `insert into user_otp_verification (identifier, otp_hash, purpose, expires_at)
+       values ($1, $2, 'REGISTRATION', (now()::timestamp + make_interval(mins => $3)))`,
+      [email, otp, ttlMin]
     );
+
+    const smtpUser = String(process.env.SMTP_EMAIL || '').toLowerCase().trim();
+    const smtpPass = String(process.env.SMTP_PASSWORD || '').trim();
+    const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+    const port = Number(process.env.SMTP_PORT || 587);
+    
+    if (!smtpUser || !smtpPass) {
+        // Fallback for dev if no SMTP - verify via logs
+        console.log(`[DEV] OTP for ${email}: ${otp}`);
+        return res.json({ ok: true, dev: true });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+    
+    await transporter.sendMail({
+      from: smtpUser,
+      to: email,
+      subject: 'RVU Registration OTP',
+      text: `Your OTP is ${otp}. It expires in ${ttlMin} minutes.`,
+      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in ${ttlMin} minutes.</p>`
+    });
+    
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('Send OTP Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+const verifyRegistrationOtp = async (req, res) => {
+  try {
+    let { usn, email, otp } = req.body || {};
+    email = String(email || '').toLowerCase();
+    otp = String(otp || '').trim();
+    
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+
+    const q = await pool.query(
+      `select id, otp_hash, expires_at, (expires_at <= now()::timestamp) as expired
+       from user_otp_verification
+       where identifier=$1 and purpose='REGISTRATION' and verified=false
+       order by created_at desc
+       limit 1`,
+      [email]
+    );
+    
+    if (!q.rows.length) return res.status(400).json({ error: 'No pending OTP found' });
+    const row = q.rows[0];
+    
+    if (row.expired) return res.status(400).json({ error: 'OTP expired' });
+    if (row.otp_hash !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+    
+    await pool.query('update user_otp_verification set verified=true where id=$1', [row.id]);
+    
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
+
+const sendPersonalOtp = async (req, res) => {
+  try {
+    let { email } = req.body || {};
+    email = String(email || '').toLowerCase();
+    
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const ttlMin = Number(process.env.OTP_TTL_MINUTES || 10);
+
+    await pool.query(
+      `insert into user_otp_verification (identifier, otp_hash, purpose, expires_at)
+       values ($1, $2, 'REGISTRATION', (now()::timestamp + make_interval(mins => $3)))`,
+      [email, otp, ttlMin]
+    );
+
+    const smtpUser = String(process.env.SMTP_EMAIL || '').toLowerCase().trim();
+    const smtpPass = String(process.env.SMTP_PASSWORD || '').trim();
+    const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+    const port = Number(process.env.SMTP_PORT || 587);
+
+    if (!smtpUser || !smtpPass) {
+         console.log(`[DEV] Personal OTP for ${email}: ${otp}`);
+         return res.json({ ok: true, dev: true });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host, port, secure: false, auth: { user: smtpUser, pass: smtpPass }
+    });
+
+    await transporter.sendMail({
+      from: smtpUser,
+      to: email,
+      subject: 'RVU Personal Email Verification',
+      text: `Your Verification Code is ${otp}.`,
+      html: `<p>Your Verification Code is <strong>${otp}</strong>.</p>`
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Send Personal OTP Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+const verifyPersonalOtp = async (req, res) => {
+  try {
+    let { email, otp } = req.body || {};
+    email = String(email || '').toLowerCase();
+    otp = String(otp || '').trim();
+
+    const q = await pool.query(
+      `select id, otp_hash, expires_at, (expires_at <= now()::timestamp) as expired
+       from user_otp_verification
+       where identifier=$1 and purpose='REGISTRATION' and verified=false
+       order by created_at desc
+       limit 1`,
+      [email]
+    );
+
+    if (!q.rows.length) return res.status(400).json({ error: 'No pending OTP found' });
+    const row = q.rows[0];
+
+    if (row.expired) return res.status(400).json({ error: 'OTP expired' });
+    if (row.otp_hash !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+
+    await pool.query('update user_otp_verification set verified=true where id=$1', [row.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+const registerStudent = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    let { 
+      usn, rvuEmail, password,
+      personalEmail, phone, dob, gender,
+      parents // Array of { type, name, occupation, organization, email, phone }
+    } = req.body;
+
+    usn = String(usn).toUpperCase();
+    rvuEmail = String(rvuEmail).toLowerCase();
+    
+    // 1. Verify Registration OTP was verified (Security check)
+    const otpCheck = await client.query(
+      `select verified from user_otp_verification where identifier=$1 and purpose='REGISTRATION' order by created_at desc limit 1`,
+      [rvuEmail]
+    );
+    if (!otpCheck.rows.length || !otpCheck.rows[0].verified) {
+       throw new Error('RVU Email OTP not verified');
+    }
+    
+    // 2. Verify Personal Email OTP was verified
+    if (personalEmail) {
+        const pOtpCheck = await client.query(
+          `select verified from user_otp_verification where identifier=$1 and purpose='REGISTRATION' order by created_at desc limit 1`,
+          [personalEmail]
+        );
+        if (!pOtpCheck.rows.length || !pOtpCheck.rows[0].verified) {
+           throw new Error('Personal Email OTP not verified');
+        }
+    }
+
+    const normalizedGender = (() => {
+      const g = String(gender || '').trim();
+      if (!g) return null;
+      const up = g.toUpperCase();
+      if (up === 'MALE' || up === 'FEMALE') return up;
+      if (g === 'Other' || up === 'OTHER') return 'Other';
+      return null;
+    })();
+
+    // 3. Update Personal Details
+    await client.query(
+      `update students_personal_details set 
+       personal_email=$1,
+       phone_number=$2,
+       date_of_birth=$3,
+       gender=$4
+       where usn=$5`,
+      [personalEmail || null, phone || null, dob || null, normalizedGender, usn]
+    );
+
+    // 4. Insert Parent Details
+    if (Array.isArray(parents)) {
+      for (const p of parents) {
+        const parentType = String(p?.type || p?.parent_type || '').trim();
+        const parentName = String(p?.name || '').trim();
+        if (!parentType || !parentName) continue;
+        if (!['Father', 'Mother', 'Guardian'].includes(parentType)) continue;
+
+        await client.query(
+          `insert into student_parent_details (usn, parent_type, name, occupation, organisation, email, phone_country_code, phone_number)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)
+           on conflict (usn, parent_type) do update set
+           name=excluded.name, occupation=excluded.occupation, organisation=excluded.organisation,
+           email=excluded.email, phone_country_code=excluded.phone_country_code, phone_number=excluded.phone_number, updated_at=now()`,
+          [usn, parentType, parentName, p.occupation || null, p.organization || p.organisation || null, p.email || null, p.phoneCountryCode || p.phone_country_code || null, p.phone || p.phone_number || null]
+        );
+      }
+    }
+
+    // 5. Create User Login
+    const loginTable = await getLoginTable();
+    const roleRes = await client.query("select id from roles where name='student'");
+    const roleId = roleRes.rows[0]?.id;
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    const userRes = await client.query(
+      `insert into ${loginTable} (usn, mail, role_id, password_hash, is_active)
+       values ($1, $2, $3, $4, true)
+       returning id`,
+      [usn, rvuEmail, roleId, passwordHash]
+    );
+    const userId = userRes.rows[0].id;
+
+    await client.query('COMMIT');
+    
+    // Auto Login
+    const tokenPayload = { sub: String(userId), role_id: roleId, role_name: 'student', usn };
+    const access = jwt.sign(tokenPayload, process.env.JWT_SECRET || 'dev-fallback-secret', { expiresIn: '1d' });
+    const r = newRefresh();
+    const exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    await pool.query(
+      'insert into auth_refresh_tokens (user_login_id, token_hash, jti, expires_at, user_agent, ip) values ($1,$2,$3,$4,$5,$6)',
+      [userId, r.hash, r.jti, exp, req.headers['user-agent'], req.ip]
+    );
+    setRefreshCookie(res, r.raw);
+    
+    res.json({ ok: true, access, user: { usn, email: rvuEmail, role_id: roleId } });
+
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Registration Error:', e);
+    res.status(500).json({ error: e.message });
+  } finally {
+    client.release();
+  }
+};
+
 const verifyUsn = async (req, res) => {
   try {
-    const { usn } = req.body;
+    let { usn } = req.body;
     if (!usn) {
       return res.status(400).json({ error: 'USN required' });
     }
+    usn = String(usn).toUpperCase();
     const loginTable = await getLoginTable();
     const userRes = await pool.query(`select * from ${loginTable} where usn=$1`, [usn]);
+    const studentRes = await pool.query('select * from students_personal_details where usn=$1', [usn]);
+    if (!studentRes.rows.length) {
+      return res.status(404).json({ error: 'USN not found in personal details. Please contact administration.' });
+    }
+    const student = studentRes.rows[0];
+
+    let program = null;
+    if (student.program_id) {
+      try {
+        const p = await pool.query('select name from programs where id=$1', [student.program_id]);
+        if (p.rows.length) program = p.rows[0].name;
+      } catch {}
+    }
+
+    let parents = [];
+    try {
+      const pr = await pool.query(
+        `select * from student_parent_details where usn=$1 order by parent_type`,
+        [usn]
+      );
+      parents = pr.rows;
+    } catch {}
+
     if (userRes.rows.length) {
       const user = userRes.rows[0];
-      let name = '';
-      let school = null;
-      let program = null;
-      try {
-        const pr = await pool.query('select full_name, school_name, program_id from students_personal_details where usn=$1', [usn]);
-        if (pr.rows.length) {
-          name = pr.rows[0].full_name || '';
-          school = pr.rows[0].school_name || null;
-          const pid = pr.rows[0].program_id;
-          if (pid) {
-            const p = await pool.query('select name from programs where id=$1', [pid]);
-            if (p.rows.length) program = p.rows[0].name;
-          }
-        }
-      } catch {}
       return res.json({
         exists: true,
         isRegistered: true,
-        name,
-        email: user.rvu_email || user.email || user.personal_email,
-        school,
-        program
+        name: student.full_name || '',
+        email: user.mail || user.email || user.rvu_email || user.mail_id || null,
+        school: student.school_name || null,
+        program,
+        student,
+        parents
       });
     }
-    const personalRes = await pool.query('select full_name, school_name, program_id from students_personal_details where usn=$1', [usn]);
-    if (!personalRes.rows.length) {
-      return res.status(404).json({ error: 'USN not found in personal details. Please contact administration.' });
-    }
-    const row = personalRes.rows[0];
-    const name = row.full_name;
-    const school = row.school_name || null;
-    let program = null;
-    if (row.program_id) {
-      const p = await pool.query('select name from programs where id=$1', [row.program_id]);
-      if (p.rows.length) program = p.rows[0].name;
-    }
-    let email = null;
-    try {
-      const commRes = await pool.query('select college_email, personal_email from student_profile_communication where usn=$1', [usn]);
-      if (commRes.rows.length) {
-        email = commRes.rows[0].college_email || null;
-      }
-    } catch {}
     return res.json({
       exists: true,
       isRegistered: false,
-      name,
-      email,
-      school,
-      program
+      name: student.full_name || '',
+      email: student.college_email || null,
+      personalEmail: student.personal_email || null,
+      school: student.school_name || null,
+      program,
+      phoneCountryCode: student.phone_country_code || null,
+      phone: student.phone_number || null,
+      dob: student.date_of_birth || null,
+      gender: student.gender || null,
+      student,
+      parents
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -336,5 +602,10 @@ module.exports = {
   refresh,
   logout,
   verifyUsn,
-  getLoginTable
+  getLoginTable,
+  registerStudent,
+  sendRegistrationOtp,
+  verifyRegistrationOtp,
+  sendPersonalOtp,
+  verifyPersonalOtp
 };

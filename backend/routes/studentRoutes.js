@@ -14,6 +14,7 @@ router.get('/public/meta/majors', getMajors);
 router.get('/public/meta/minors', getMinors);
 router.get('/public/meta/specializations', getSpecializations);
 
+router.get('/:usn/personal-page', authenticateToken, studentController.getPersonalPage);
 router.get('/:usn/:section', authenticateToken, studentController.getSection);
 router.post('/:usn/:section', authenticateToken, studentController.saveSection);
 
