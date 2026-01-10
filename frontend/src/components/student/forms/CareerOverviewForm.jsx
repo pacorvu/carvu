@@ -55,6 +55,44 @@ export const CareerOverviewForm = ({ data = {}, onUpdate, isEditing }) => {
       </FormControl>
 
       <FormControl>
+        <FormLabel>Key Expertise</FormLabel>
+        <Textarea
+          value={formData.keyExpertise || ""}
+          onChange={(e) => handleChange("keyExpertise", e.target.value)}
+          variant="flushed"
+          minH="100px"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          placeholder="List your key skills and expertise..."
+        />
+      </FormControl>
+
+      <FormControl>
+        <FormLabel>Hobbies & Interests</FormLabel>
+        <Textarea
+          value={formData.hobbiesInterests || ""}
+          onChange={(e) => handleChange("hobbiesInterests", e.target.value)}
+          variant="flushed"
+          minH="100px"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          placeholder="Share your hobbies and interests..."
+        />
+      </FormControl>
+
+      <FormControl>
+        <FormLabel>Dream Package (LPA)</FormLabel>
+        <Input
+          value={formData.dreamPackage || ""}
+          onChange={(e) => handleChange("dreamPackage", e.target.value)}
+          variant="flushed"
+          isDisabled={!isEditing}
+          _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+          placeholder="e.g. 12"
+        />
+      </FormControl>
+
+      <FormControl>
         <FormLabel>Dream Companies</FormLabel>
         <Input
           value={formData.dreamCompanies || ""}

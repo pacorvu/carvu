@@ -40,10 +40,12 @@ export const ProjectsForm = ({ data = {}, onUpdate, isEditing = false }) => {
       {
         title: "",
         description: "",
-        skills: [], // Changed to array to match mock data
-        projectLink: "", // Changed to match mock data key
+        skills: "", // Changed to string for input
+        projectLink: "",
         role: "",
         teamSize: "",
+        mentorName: "",
+        proofFile: ""
       }
     ])
   }
@@ -130,19 +132,36 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
+                    <Field label="Team Size">
+                        <Input 
+                            type="number"
+                            value={item.teamSize || ""} 
+                            onChange={(e) => onChange(index, "teamSize", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Mentor Name">
+                        <Input 
+                            value={item.mentorName || ""} 
+                            onChange={(e) => onChange(index, "mentorName", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
                     <Field label="Technologies (comma separated)">
                         <Input 
                             placeholder="React, Node.js, MongoDB"
-                            value={item.technologies || ""} 
-                            onChange={(e) => onChange(index, "technologies", e.target.value)} 
+                            value={item.skills || ""} 
+                            onChange={(e) => onChange(index, "skills", e.target.value)} 
                             variant="flushed"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Project Link (GitHub/Live)">
                         <Input 
-                            value={item.link || ""} 
-                            onChange={(e) => onChange(index, "link", e.target.value)} 
+                            value={item.projectLink || ""} 
+                            onChange={(e) => onChange(index, "projectLink", e.target.value)} 
                             variant="flushed"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
@@ -157,24 +176,6 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                         />
                         {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
-                    </Field>
-                    <Field label="Start Date">
-                        <Input 
-                            type="date"
-                            value={item.startDate || ""} 
-                            onChange={(e) => onChange(index, "startDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                    </Field>
-                    <Field label="End Date">
-                        <Input 
-                            type="date"
-                            value={item.endDate || ""} 
-                            onChange={(e) => onChange(index, "endDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
                     </Field>
                 </SimpleGrid>
                 <Field label="Description">

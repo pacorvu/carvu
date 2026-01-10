@@ -15,29 +15,25 @@ import { FaPlus, FaTrash } from "react-icons/fa";
 
 export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
   const bg = useColorModeValue("white", "gray.700");
-  const formData = data || {};
-
-  const handleChange = (field, value) => {
-    onUpdate({ ...formData, [field]: value });
-  };
+  const certifications = Array.isArray(data) ? data : [];
 
   const handleAdd = () => {
     const newCertifications = [
-      ...(formData.certifications || []),
-      { name: "", organization: "", issueDate: "", expiryDate: "", credentialId: "", credentialUrl: "" },
+      ...certifications,
+      { name: "", organization: "", issueDate: "", expiryDate: "", credentialId: "", credentialUrl: "", certificationType: "", skills: "", score: "" },
     ];
-    handleChange("certifications", newCertifications);
+    onUpdate(newCertifications);
   };
 
   const handleRemove = (index) => {
-    const newCertifications = formData.certifications.filter((_, i) => i !== index);
-    handleChange("certifications", newCertifications);
+    const newCertifications = certifications.filter((_, i) => i !== index);
+    onUpdate(newCertifications);
   };
 
   const handleCertificationChange = (index, field, value) => {
-    const newCertifications = [...(formData.certifications || [])];
+    const newCertifications = [...certifications];
     newCertifications[index] = { ...newCertifications[index], [field]: value };
-    handleChange("certifications", newCertifications);
+    onUpdate(newCertifications);
   };
 
   return (
@@ -61,7 +57,7 @@ export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
         )}
       </Box>
 
-      {formData.certifications?.map((cert, index) => (
+      {certifications.map((cert, index) => (
         <Box
           key={index}
           p={4}
@@ -102,6 +98,47 @@ export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
                 value={cert.organization || ""}
                 onChange={(e) =>
                   handleCertificationChange(index, "organization", e.target.value)
+                }
+                variant="flushed"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Certification Type</FormLabel>
+              <Input
+                value={cert.certificationType || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "certificationType", e.target.value)
+                }
+                variant="flushed"
+                placeholder="e.g. Technical, Professional"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Skills</FormLabel>
+              <Input
+                value={cert.skills || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "skills", e.target.value)
+                }
+                variant="flushed"
+                placeholder="e.g. React, Java"
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Score / Grade</FormLabel>
+              <Input
+                value={cert.score || ""}
+                onChange={(e) =>
+                  handleCertificationChange(index, "score", e.target.value)
                 }
                 variant="flushed"
                 isDisabled={!isEditing}

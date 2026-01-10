@@ -37,8 +37,13 @@ export const OtherExperiencesForm = ({ data = {}, onUpdate, isEditing = false })
       ...items,
       {
         title: "",
+        organization: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        skills: "",
         description: "",
-        date: ""
+        proofFile: ""
       }
     ])
   }
@@ -109,7 +114,7 @@ const OtherExperienceItem = ({ index, item, onChange, onDelete, isEditing }) => 
         <Collapse in={isOpen}>
             <VStack spacing={4} align="stretch">
                 <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Title / Event Name">
+                    <Field label="Title / Role">
                         <Input 
                             value={item.title || ""} 
                             onChange={(e) => onChange(index, "title", e.target.value)} 
@@ -117,23 +122,57 @@ const OtherExperienceItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Date">
+                    <Field label="Organization">
+                        <Input 
+                            value={item.organization || ""} 
+                            onChange={(e) => onChange(index, "organization", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Location">
+                        <Input 
+                            value={item.location || ""} 
+                            onChange={(e) => onChange(index, "location", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Start Date">
                         <Input 
                             type="date"
-                            value={item.date || ""} 
-                            onChange={(e) => onChange(index, "date", e.target.value)} 
+                            value={item.startDate || ""} 
+                            onChange={(e) => onChange(index, "startDate", e.target.value)} 
                             variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="End Date">
+                        <Input 
+                            type="date"
+                            value={item.endDate || ""} 
+                            onChange={(e) => onChange(index, "endDate", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Skills">
+                        <Input 
+                            value={item.skills || ""} 
+                            onChange={(e) => onChange(index, "skills", e.target.value)} 
+                            variant="flushed"
+                            placeholder="e.g. Leadership, Management"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
                     <Field label="Upload Proof">
                         <Input 
-                            type="file" 
-                            p={1} 
+                            type="file"
+                            p={1}
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
-                            variant="flushed" 
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                         {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
                     </Field>

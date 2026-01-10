@@ -19,7 +19,7 @@
  * - DELETE /api/student/profile/publications/:id
  */
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
+import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea, Select } from "@chakra-ui/react"
 import { Field } from "../../ui/field"
 import { useState } from "react"
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
@@ -39,7 +39,11 @@ export const PublicationsForm = ({ data = {}, onUpdate, isEditing = false }) => 
       {
         title: "",
         journalConferenceName: "",
+        publicationType: "",
         publicationDate: "",
+        authorCount: "",
+        mentorName: "",
+        skills: "",
         link: "",
         description: ""
       }
@@ -120,11 +124,51 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Journal / Conference Name">
+                    <Field label="Journal/Conference Name">
                         <Input 
                             value={item.journalConferenceName || ""} 
                             onChange={(e) => onChange(index, "journalConferenceName", e.target.value)} 
                             variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Publication Type">
+                        <Select 
+                            value={item.publicationType || ""} 
+                            onChange={(e) => onChange(index, "publicationType", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            placeholder="Select Type"
+                        >
+                            <option value="Journal">Journal</option>
+                            <option value="Conference">Conference</option>
+                            <option value="Book Chapter">Book Chapter</option>
+                            <option value="Other">Other</option>
+                        </Select>
+                    </Field>
+                    <Field label="Author Count">
+                        <Input 
+                            type="number"
+                            value={item.authorCount || ""} 
+                            onChange={(e) => onChange(index, "authorCount", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Mentor Name">
+                        <Input 
+                            value={item.mentorName || ""} 
+                            onChange={(e) => onChange(index, "mentorName", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Skills">
+                        <Input 
+                            value={item.skills || ""} 
+                            onChange={(e) => onChange(index, "skills", e.target.value)} 
+                            variant="flushed"
+                            placeholder="e.g. Research, Writing"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
@@ -137,7 +181,7 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Link (DOI / URL)">
+                    <Field label="Link (DOI/URL)">
                         <Input 
                             value={item.link || ""} 
                             onChange={(e) => onChange(index, "link", e.target.value)} 

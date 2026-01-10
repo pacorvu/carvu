@@ -47,22 +47,22 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
 
   const INITIAL_PARENTS = [
     { 
-      parent_type: "Father",
+      parentType: "Father",
       name: "", 
       occupation: "",
       organisation: "",
       email: "",
-      phone_country_code: "+91",
-      phone_number: ""
+      phoneCountryCode: "+91",
+      phoneNumber: ""
     },
     { 
-      parent_type: "Mother",
+      parentType: "Mother",
       name: "", 
       occupation: "",
       organisation: "",
       email: "",
-      phone_country_code: "+91",
-      phone_number: ""
+      phoneCountryCode: "+91",
+      phoneNumber: ""
     }
   ]
 
@@ -82,12 +82,12 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
     const currentParents = (parentsData.length > 0) ? [...parentsData] : JSON.parse(JSON.stringify(INITIAL_PARENTS))
     const newParents = [...currentParents, { 
       name: "", 
-      parent_type: "Guardian",
+      parentType: "Guardian",
       occupation: "",
       organisation: "",
       email: "",
-      phone_country_code: "+91",
-      phone_number: ""
+      phoneCountryCode: "+91",
+      phoneNumber: ""
     }]
     onUpdate(newParents)
     try {
@@ -128,7 +128,7 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
         {parents.map((parent, index) => (
             <Box key={index}>
                 <Flex justify="space-between" align="center" mb={4}>
-                    <SectionHeader title={`${parent.parent_type || "Parent"}'s Details`} icon={FaUserFriends} />
+                    <SectionHeader title={`${parent.parentType || "Parent"}'s Details`} icon={FaUserFriends} />
                     {isEditing && (
                         <Button 
                             colorScheme="red" 
@@ -144,8 +144,8 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
                 <SimpleGrid columns={{ base: 1, md: 3 }} gap={8}>
                     <Field label="Type" required>
                         <Select 
-                            value={parent.parent_type || "Father"} 
-                            onChange={(e) => handleParentChange(index, "parent_type", e.target.value)} 
+                            value={parent.parentType || "Father"} 
+                            onChange={(e) => handleParentChange(index, "parentType", e.target.value)} 
                             variant="flushed" 
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         >
@@ -188,8 +188,8 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
                         <Flex gap={2}>
                             <Input 
                                 w="80px"
-                                value={parent.phone_country_code || "+91"} 
-                                onChange={(e) => handleParentChange(index, "phone_country_code", e.target.value)} 
+                                value={parent.phoneCountryCode || "+91"} 
+                                onChange={(e) => handleParentChange(index, "phoneCountryCode", e.target.value)} 
                                 variant="flushed" 
                                 autoComplete="tel-country-code"
                                 isDisabled={!isEditing} 
@@ -197,16 +197,16 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
                             />
                             <Input 
                                 type="tel" 
-                                value={parent.phone_number || ""} 
-                                onChange={(e) => handleParentChange(index, "phone_number", e.target.value)} 
+                                value={parent.phoneNumber || ""} 
+                                onChange={(e) => handleParentChange(index, "phoneNumber", e.target.value)} 
                                 variant="flushed" 
-                                autoComplete="tel"
+                                autoComplete="tel-national"
                                 isDisabled={!isEditing} 
                                 _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                             />
                         </Flex>
                     </Field>
-                    <Field label="Email ID">
+                    <Field label="Email" required>
                         <Input 
                             type="email" 
                             value={parent.email || ""} 

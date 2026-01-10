@@ -109,7 +109,9 @@ const columnMapping = {
       hobbiesInterests: 'hobbies_interests',
       careerObjective: 'career_objective',
       dreamPackage: 'dream_package',
-      dreamCompany: 'dream_company'
+      dreamCompany: 'dream_company',
+      dreamCompanies: 'dream_company', // Handle plural from frontend
+      futureGoals: 'future_goals'
     },
     fromDb: {
       brief_summary: 'briefSummary',
@@ -117,7 +119,8 @@ const columnMapping = {
       hobbies_interests: 'hobbiesInterests',
       career_objective: 'careerObjective',
       dream_package: 'dreamPackage',
-      dream_company: 'dreamCompany'
+      dream_company: 'dreamCompanies', // Map back to plural for frontend
+      future_goals: 'futureGoals'
     }
   },
   education: {
@@ -182,15 +185,19 @@ const columnMapping = {
       proofFile: 'snaps',
       snaps: 'snaps',
       mentorName: 'mentor_name',
-      description: 'description'
+      description: 'description',
+      role: 'role',
+      teamSize: 'team_size'
     },
     fromDb: {
       title: 'title',
       project_link: 'projectLink',
-      skills: 'skills', // Changed from technologies to match other sections
+      skills: 'skills', 
       snaps: 'proofFile',
       mentor_name: 'mentorName',
-      description: 'description'
+      description: 'description',
+      role: 'role',
+      team_size: 'teamSize'
     }
   },
   internships: {
@@ -283,6 +290,7 @@ const columnMapping = {
       startDate: 'start_date',
       endDate: 'end_date',
       proofDocument: 'proof_document',
+      proofFile: 'proof_document',
       location: 'location',
       skills: 'skills',
       description: 'description'
@@ -292,7 +300,7 @@ const columnMapping = {
       organization: 'organization',
       start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'proofDocument',
+      proof_document: 'proofFile',
       location: 'location',
       skills: 'skills',
       description: 'description'
@@ -310,17 +318,19 @@ const columnMapping = {
       certificateLink: 'proof_document',
       certificationType: 'certification_type',
       skills: 'skills',
-      score: 'score'
+      score: 'score',
+      credentialId: 'credential_id'
     },
     fromDb: {
-      title: 'title',
-      organization: 'issuingOrganization',
+      title: 'name', // Map title back to name for frontend
+      organization: 'organization',
       issue_date: 'issueDate',
       expiry_date: 'expiryDate',
-      proof_document: 'certificateLink',
+      proof_document: 'credentialUrl', // Map back to credentialUrl
       certification_type: 'certificationType',
       skills: 'skills',
-      score: 'score'
+      score: 'score',
+      credential_id: 'credentialId'
     }
   },
   extraCurricular: {
@@ -520,6 +530,32 @@ const getSection = async (req, res) => {
       return res.json(fullProfile);
     }
 
+    if (section === 'personal') {
+      const query = `
+        select spd.*,
+               p.name as program_name,
+               mj.name as major_name,
+               mn.name as minor_name,
+               sz.name as specialization_name
+        from students_personal_details spd
+        left join programs p on p.id = spd.program_id
+        left join majors mj on mj.id = spd.major_id
+        left join minors mn on mn.id = spd.minor_id
+        left join specializations sz on sz.id = spd.specialization_id
+        where spd.usn = $1
+      `;
+      const result = await pool.query(query, [usn]);
+      const row = result.rows[0] || {};
+      
+      const data = mapData('personal', row, 'fromDb');
+      if (row.program_name !== undefined) data.programName = row.program_name;
+      if (row.major_name !== undefined) data.majorName = row.major_name;
+      if (row.minor_name !== undefined) data.minorName = row.minor_name;
+      if (row.specialization_name !== undefined) data.specializationName = row.specialization_name;
+      
+      return res.json(data);
+    }
+
     const tableName = tableMapping[section];
     if (!tableName) {
       return res.status(404).json({ error: 'Section not found' });
@@ -557,10 +593,13 @@ const saveSection = async (req, res) => {
       return res.status(404).json({ error: 'Section not found' });
     }
 
-    // Map to DB
-    data = mapData(section, data, 'toDb');
-
     const isArray = arrayTables.includes(tableName);
+
+    // Map to DB
+    // We do mapping differently for Array vs Object to handle wrapped arrays correctly
+    if (!isArray) {
+        data = mapData(section, data, 'toDb');
+    }
 
     const client = await pool.connect();
     try {
@@ -571,8 +610,21 @@ const saveSection = async (req, res) => {
         // 1. Delete existing
         await client.query(`delete from ${tableName} where usn = $1`, [usn]);
         
+        // Handle case where data might be wrapped in an object (e.g. { parents: [...] })
+        let arrayData = data;
+        if (!Array.isArray(data) && typeof data === 'object') {
+             // Try to find the array in values
+             const potentialArray = Object.values(data).find(v => Array.isArray(v));
+             if (potentialArray) {
+                 arrayData = potentialArray;
+             }
+        }
+
+        // Now map the array data
+        arrayData = mapData(section, arrayData, 'toDb');
+
         // 2. Insert new
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(arrayData) && arrayData.length > 0) {
           // Get columns once, outside the loop
           const colsRes = await client.query(
             "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
@@ -581,7 +633,7 @@ const saveSection = async (req, res) => {
           // Filter out id, timestamps, and USN (since we add USN manually)
           const validCols = colsRes.rows.map(r => r.column_name).filter(c => c !== 'id' && c !== 'created_at' && c !== 'updated_at' && c !== 'usn');
           
-          for (const item of data) {
+          for (const item of arrayData) {
             const insertCols = ['usn'];
             const insertParams = [usn];
             const placeholders = ['$1'];
@@ -589,7 +641,18 @@ const saveSection = async (req, res) => {
             for (const col of validCols) {
               if (item[col] !== undefined) {
                 insertCols.push(col);
-                insertParams.push(item[col]);
+                
+                let val = item[col];
+                // Handle JSONB/Array fields that might need stringification
+                if (col === 'links' && typeof val === 'object') {
+                    val = JSON.stringify(val);
+                }
+                // Handle Array fields for Career section
+                if ((col === 'key_expertise' || col === 'hobbies_interests') && typeof val === 'string') {
+                    val = val.split(',').map(s => s.trim()).filter(Boolean);
+                }
+
+                insertParams.push(val);
                 placeholders.push(`$${insertParams.length}`);
               }
             }
@@ -597,6 +660,8 @@ const saveSection = async (req, res) => {
             if (insertCols.length > 1) { // Only insert if we have more than just USN
               const sql = `insert into ${tableName} ("${insertCols.join('", "')}") values (${placeholders.join(', ')})`;
               await client.query(sql, insertParams);
+            } else {
+                console.warn(`[SaveSection] Skipping insert for ${tableName}: No valid columns found for item`, item);
             }
           }
         }
@@ -622,7 +687,18 @@ const saveSection = async (req, res) => {
           for (const col of validCols) {
             if (data[col] !== undefined) {
               updateSets.push(`"${col}" = $${paramIdx}`);
-              updateParams.push(data[col]);
+              
+              // Handle JSONB/Array fields that might need stringification
+              let val = data[col];
+              if (col === 'links' && typeof val === 'object') {
+                  val = JSON.stringify(val);
+              }
+              // Handle Array fields for Career section
+              if ((col === 'key_expertise' || col === 'hobbies_interests') && typeof val === 'string') {
+                  val = val.split(',').map(s => s.trim()).filter(Boolean);
+              }
+              
+              updateParams.push(val);
               paramIdx++;
             }
           }
@@ -647,7 +723,22 @@ const saveSection = async (req, res) => {
           }
           
           const sql = `insert into ${tableName} ("${insertCols.join('", "')}") values (${placeholders.join(', ')})`;
-          await client.query(sql, insertParams);
+          try {
+            await client.query(sql, insertParams);
+          } catch (err) {
+            // Handle specific errors for better feedback
+            if (err.code === '23502') { // not_null_violation
+                throw new Error(`Field '${err.column}' is required.`);
+            }
+            if (tableName === 'students_personal_details') {
+               if (err.code === '23505') { // unique_violation
+                 if (err.constraint === 'students_personal_details_college_email_key') {
+                    throw new Error('College Email is already in use by another student.');
+                 }
+               }
+            }
+            throw err;
+          }
         }
       }
 

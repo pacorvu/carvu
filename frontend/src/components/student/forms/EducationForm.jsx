@@ -53,10 +53,12 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
             <Field label="Education Level">
                 <Select variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} value={item.educationLevel || ""} onChange={(e) => handleChange("educationLevel", e.target.value)}>
                     <option value="">Select Level</option>
-                    <option value="10th">10th</option>
-                    <option value="12th">12th</option>
-                    <option value="Undergraduate">Undergraduate</option>
-                    <option value="Postgraduate">Postgraduate</option>
+                    <option value="10TH">10th</option>
+                    <option value="12TH">12th</option>
+                    <option value="DIPLOMA">Diploma</option>
+                    <option value="GRADUATION">Undergraduate</option>
+                    <option value="POST_GRADUATION">Postgraduate</option>
+                    <option value="OTHER">Other</option>
                 </Select>
             </Field>
             <Field label="Institute Name">
@@ -100,7 +102,12 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
             <Heading size="xs" mb={4} color="gray.600">Gap Details (If any)</Heading>
             <SimpleGrid columns={{ base: 1, md: 3 }} gap={6}>
                  <Field label="Gap Type">
-                    <Input value={item.gapType || ""} onChange={(e) => handleChange("gapType", e.target.value)} variant="flushed" placeholder="e.g. Preparation" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
+                    <Select variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} value={item.gapType || ""} onChange={(e) => handleChange("gapType", e.target.value)}>
+                        <option value="">None</option>
+                        <option value="12TH_TO_GRADUATION">12th to Graduation</option>
+                        <option value="DIPLOMA_TO_GRADUATION">Diploma to Graduation</option>
+                        <option value="GRADUATION_TO_POST_GRADUATION">Graduation to Post Graduation</option>
+                    </Select>
                 </Field>
                 <Field label="Duration (Months)">
                     <Input type="number" value={item.gapDurationMonths || ""} onChange={(e) => handleChange("gapDurationMonths", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />

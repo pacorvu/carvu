@@ -68,11 +68,19 @@ export const ContactLinksForm = ({
 
   const isStudent = true; // For styling consistency if needed
 
+  // Parse "+91 9876543210" or "91-9876543210"
+  // If no separator found, treat whole string as phone number (empty country code)
   const parsePhone = (raw) => {
     const s = String(raw || "").trim();
     if (!s) return { phoneCountryCode: "", phoneNumber: "" };
-    const m = /^\+?(\d{1,4})[\s-]*(.*)$/.exec(s);
-    if (!m) return { phoneCountryCode: "", phoneNumber: s };
+    
+    // Require at least one space or hyphen to separate code from number
+    const m = /^\+?(\d{1,4})[\s-]+(.*)$/.exec(s);
+    if (!m) {
+      // No separator -> assume it's just the number
+      return { phoneCountryCode: "", phoneNumber: s };
+    }
+    
     const code = m[1] || "";
     const rest = String(m[2] || "").replace(/[^\d]/g, "");
     return { phoneCountryCode: code ? `+${code}` : "", phoneNumber: rest || "" };
@@ -95,11 +103,13 @@ export const ContactLinksForm = ({
               <FormLabel fontWeight="semibold" color="gray.600">College Email</FormLabel>
               <Input
                 value={formData.collegeEmail || ""}
-                variant="unstyled"
+                onChange={(e) => handleChange("collegeEmail", e.target.value)}
+                variant={inputVariant}
+                focusBorderColor={focusBorderColor}
+                px={inputPadding}
                 type="email"
-                isReadOnly
-                color="gray.500"
-                _disabled={{ opacity: 1, cursor: "not-allowed" }}
+                isDisabled={!isEditing}
+                _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
               />
             </FormControl>
 

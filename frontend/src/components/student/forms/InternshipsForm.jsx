@@ -42,8 +42,11 @@ export const InternshipsForm = ({ data = {}, onUpdate, isEditing = false }) => {
         companyName: "",
         role: "",
         location: "",
+        stipend: "",
         startDate: "",
         endDate: "",
+        skills: "",
+        mentorName: "",
         description: "",
         certificateLink: ""
       }
@@ -136,6 +139,32 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                         <Input 
                             value={item.location || ""} 
                             onChange={(e) => onChange(index, "location", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Stipend">
+                        <Input 
+                            type="number"
+                            value={item.stipend || ""} 
+                            onChange={(e) => onChange(index, "stipend", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Skills">
+                        <Input 
+                            value={item.skills || ""} 
+                            onChange={(e) => onChange(index, "skills", e.target.value)} 
+                            variant="flushed"
+                            placeholder="e.g. React, Node.js"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Mentor Name">
+                        <Input 
+                            value={item.mentorName || ""} 
+                            onChange={(e) => onChange(index, "mentorName", e.target.value)} 
                             variant="flushed"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />

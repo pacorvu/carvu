@@ -19,7 +19,7 @@
  * - DELETE /api/student/profile/extra-curricular/:id
  */
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex } from "@chakra-ui/react"
+import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
 import { Field } from "../../ui/field"
 import { useState } from "react"
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
@@ -39,8 +39,14 @@ export const ExtraCurricularForm = ({ data = {}, onUpdate, isEditing = false }) 
       {
         activityName: "",
         role: "",
+        organization: "",
+        activityType: "",
+        startDate: "",
+        endDate: "",
+        skills: "",
         achievement: "",
-        date: ""
+        description: "",
+        proofFile: ""
       }
     ])
   }
@@ -119,6 +125,15 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
+                    <Field label="Activity Type">
+                        <Input 
+                            value={item.activityType || ""} 
+                            onChange={(e) => onChange(index, "activityType", e.target.value)} 
+                            variant="flushed"
+                            placeholder="e.g. Sports, Cultural"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
                     <Field label="Role">
                         <Input 
                             value={item.role || ""} 
@@ -127,7 +142,33 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Achievement / Description">
+                    <Field label="Organization">
+                        <Input 
+                            value={item.organization || ""} 
+                            onChange={(e) => onChange(index, "organization", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Start Date">
+                        <Input 
+                            type="date"
+                            value={item.startDate || ""} 
+                            onChange={(e) => onChange(index, "startDate", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="End Date">
+                        <Input 
+                            type="date"
+                            value={item.endDate || ""} 
+                            onChange={(e) => onChange(index, "endDate", e.target.value)} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        />
+                    </Field>
+                    <Field label="Achievement">
                         <Input 
                             value={item.achievement || ""} 
                             onChange={(e) => onChange(index, "achievement", e.target.value)} 
@@ -135,27 +176,35 @@ const ExtraCurricularItem = ({ index, item, onChange, onDelete, isEditing }) => 
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Date">
+                    <Field label="Skills">
                         <Input 
-                            type="date"
-                            value={item.date || ""} 
-                            onChange={(e) => onChange(index, "date", e.target.value)} 
+                            value={item.skills || ""} 
+                            onChange={(e) => onChange(index, "skills", e.target.value)} 
                             variant="flushed"
                             isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                     </Field>
-                    <Field label="Upload Certificate/Proof">
+                    <Field label="Upload Proof">
                         <Input 
-                            type="file" 
-                            p={1} 
+                            type="file"
+                            p={1}
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
-                            variant="flushed" 
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                            variant="flushed"
+                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
                         />
                         {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
                     </Field>
                 </SimpleGrid>
+                <Field label="Description">
+                    <Textarea 
+                        value={item.description || ""} 
+                        onChange={(e) => onChange(index, "description", e.target.value)} 
+                        variant="flushed"
+                        rows={3}
+                        isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                    />
+                </Field>
             </VStack>
         </Collapse>
       </CardBody>
