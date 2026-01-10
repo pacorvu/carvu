@@ -16,32 +16,25 @@ import {
   Flex,
 } from "@chakra-ui/react";
 
-  const matchOption = (options, name) => {
-    const n = String(name || "").trim().toLowerCase();
-    if (!n) return null;
-    return options.find((o) => String(o?.name || "").trim().toLowerCase() === n) || null;
-  };
-
-  const Section = ({ title, bg, children }) => (
-    <Box
-      bg={bg}
-      borderRadius="xl"
-      boxShadow="sm"
-      p={{ base: 6, md: 8 }}
-      border="1px solid"
-      borderColor="gray.100"
-    >
-      <Heading size="md" mb={6} color="gray.700">{title}</Heading>
-      {children}
-    </Box>
-  );
+const Section = ({ title, bg, children }) => (
+  <Box
+    bg={bg}
+    borderRadius="xl"
+    boxShadow="sm"
+    p={{ base: 6, md: 8 }}
+    border="1px solid"
+    borderColor="gray.100"
+  >
+    <Heading size="md" mb={6} color="gray.700">{title}</Heading>
+    {children}
+  </Box>
+);
 
   const SelectFromOptions = ({ 
     label, 
     valueKey, 
     idKey, 
     options, 
-    listId, 
     isEnabled,
     formData,
     handleChange,
@@ -49,41 +42,119 @@ import {
     focusBorderColor,
     inputPadding
   }) => {
-    const rawValue = String(formData[valueKey] || "");
-    const allowed = !!isEnabled;
-    return (
-      <FormControl>
-        <FormLabel fontWeight="semibold" color="gray.600">{label}</FormLabel>
-        <Input
-          value={rawValue}
-          onChange={(e) => {
-            const val = e.target.value;
-            const m = matchOption(options, val);
-            handleChange(valueKey, val);
-            handleChange(idKey, m ? m.id : null);
-          }}
-          onBlur={(e) => {
-            const val = e.target.value;
-            const m = matchOption(options, val);
-            if (!m && val.trim()) {
-              handleChange(valueKey, "");
-              handleChange(idKey, null);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [filter, setFilter] = React.useState("");
+    const wrapperRef = React.useRef(null);
+
+    // Sync input text with saved value
+    React.useEffect(() => {
+        if (!isOpen) {
+             setFilter(formData[valueKey] || "");
+        }
+    }, [formData, valueKey, isOpen]);
+
+    // Click outside handler
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
             }
-          }}
-          list={listId}
-          variant={inputVariant}
-          focusBorderColor={focusBorderColor}
-          px={inputPadding}
-          isDisabled={!allowed}
-          _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
-        />
-        <datalist id={listId}>
-          {options.map((o) => (
-            <option key={String(o.id)} value={String(o.name)} />
-          ))}
-        </datalist>
-      </FormControl>
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const filteredOptions = React.useMemo(() => {
+        if (!options) return [];
+        if (!filter) return options;
+        return options.filter(o => 
+            o.name.toLowerCase().includes(filter.toLowerCase())
+        );
+    }, [options, filter]);
+
+    const handleSelect = (option) => {
+        // Fix: Update both fields in ONE state update to prevent stale state overwrite
+        handleChange({
+            [valueKey]: option.name,
+            [idKey]: option.id
+        });
+        setFilter(option.name);
+        setIsOpen(false);
+    };
+
+    return (
+      <Box ref={wrapperRef} position="relative">
+        <FormControl>
+          <FormLabel fontWeight="semibold" color="gray.600">{label}</FormLabel>
+          <Input
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setIsOpen(true);
+              // Do NOT clear ID here. Wait for valid selection.
+              // Clearing ID while keeping Name leads to inconsistent state if user cancels.
+            }}
+            onFocus={() => isEnabled && setIsOpen(true)}
+            variant={inputVariant}
+            focusBorderColor={focusBorderColor}
+            px={inputPadding}
+            isDisabled={!isEnabled}
+            _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
+            autoComplete="off"
+            placeholder={isEnabled ? "Type to search..." : ""}
+          />
+          {isOpen && isEnabled && (
+              <Box
+                  position="absolute"
+                  top="100%"
+                  left={0}
+                  right={0}
+                  zIndex={1000}
+                  bg="white"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  borderRadius="md"
+                  boxShadow="lg"
+                  maxH="200px"
+                  overflowY="auto"
+                  mt={1}
+              >
+                  {filteredOptions.length > 0 ? (
+                      filteredOptions.map(option => (
+                          <Box
+                              key={option.id}
+                              p={2}
+                              cursor="pointer"
+                              _hover={{ bg: "gray.100" }}
+                              onMouseDown={(e) => {
+                                  e.preventDefault(); // Prevent blur
+                                  e.stopPropagation();
+                                  handleSelect(option);
+                              }}
+                          >
+                              {option.name}
+                          </Box>
+                      ))
+                  ) : (
+                       <Box p={2}>
+                          <Text color="gray.500" fontSize="sm">No options found</Text>
+                      </Box>
+                  )}
+              </Box>
+          )}
+        </FormControl>
+      </Box>
     );
+  };
+
+  const processLanguages = (val) => {
+      if (!val) return "";
+      return val.split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()) // Title Case
+        .sort()
+        .join(', ');
   };
 
 export const PersonalInformationForm = ({
@@ -94,20 +165,28 @@ export const PersonalInformationForm = ({
   majorOptions = [],
   minorOptions = [],
   specializationOptions = [],
-  allowEditMajor = false,
-  allowEditMinor = false,
-  allowEditSpecialization = false,
 }) => {
   const bg = "white"; // Clean white card
   const formData = data || {};
-  // const borderColor = isEditing ? "#d4a960" : "gray.200";
   
   const inputVariant = isEditing ? "outline" : "unstyled";
   const inputPadding = isEditing ? 3 : 0;
   const focusBorderColor = "#d4a960";
   
   const isStudent = mode === "student";
-  // const valueColor = useColorModeValue("gray.900", "gray.50");
+
+  // Filter options based on selected Program ID
+  const filteredSpecializations = React.useMemo(() => {
+      if (!formData.programId) return specializationOptions;
+      return specializationOptions.filter(s => s.program_id === formData.programId);
+  }, [specializationOptions, formData.programId]);
+
+  const filteredMajors = React.useMemo(() => {
+      if (!formData.programId) return majorOptions;
+      return majorOptions.filter(m => m.program_id === formData.programId);
+  }, [majorOptions, formData.programId]);
+
+  // Minors are not filtered as per requirements
 
   const toDdMmYyyy = (v) => {
     if (!v) return "";
@@ -142,8 +221,18 @@ export const PersonalInformationForm = ({
     return s;
   };
 
-  const handleChange = (field, value) => {
-    onUpdate({ ...formData, [field]: value });
+  // Fix: Accept an object of updates to support atomic multiple-field updates
+  const handleChange = (updates) => {
+    onUpdate({ ...formData, ...updates });
+  };
+  
+  const handleLanguageChange = (e) => {
+      handleChange({ languages: e.target.value });
+  };
+  
+  const handleLanguageBlur = (e) => {
+      const processed = processLanguages(e.target.value);
+      handleChange({ languages: processed });
   };
 
   return (
@@ -175,7 +264,7 @@ export const PersonalInformationForm = ({
                 </FormLabel>
                 <Input
                   value={formData.fullName || ""}
-                  onChange={(e) => handleChange("fullName", e.target.value)}
+                  onChange={(e) => handleChange({ fullName: e.target.value })}
                   variant={inputVariant}
                   focusBorderColor={focusBorderColor}
                   px={isEditing ? 3 : 0}
@@ -192,7 +281,7 @@ export const PersonalInformationForm = ({
                 </FormLabel>
                 <Input
                   value={formData.usn || ""}
-                  onChange={(e) => handleChange("usn", e.target.value)}
+                  onChange={(e) => handleChange({ usn: e.target.value })}
                   variant="unstyled"
                   fontSize="lg"
                   fontFamily="monospace"
@@ -216,7 +305,7 @@ export const PersonalInformationForm = ({
               isDisabled={!isEditing}
               _disabled={{ opacity: 1, color: "gray.800", cursor: "default", bg: "transparent" }}
               value={formData.gender || ""}
-              onChange={(e) => handleChange("gender", e.target.value)}
+              onChange={(e) => handleChange({ gender: e.target.value })}
               icon={!isEditing ? "none" : undefined}
             >
               <option value="">Select</option>
@@ -231,7 +320,7 @@ export const PersonalInformationForm = ({
             <Input
               type={isEditing ? "date" : "text"}
               value={isEditing ? toYyyyMmDd(formData.dateOfBirth || "") : toDdMmYyyy(formData.dateOfBirth || "")}
-              onChange={(e) => handleChange("dateOfBirth", e.target.value)}
+              onChange={(e) => handleChange({ dateOfBirth: e.target.value })}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
@@ -244,7 +333,7 @@ export const PersonalInformationForm = ({
             <FormLabel fontWeight="semibold" color="gray.600">Blood Group</FormLabel>
             <Input
               value={formData.bloodGroup || ""}
-              onChange={(e) => handleChange("bloodGroup", e.target.value)}
+              onChange={(e) => handleChange({ bloodGroup: e.target.value })}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
@@ -261,7 +350,7 @@ export const PersonalInformationForm = ({
               isDisabled={!isEditing}
               _disabled={{ opacity: 1, color: "gray.800", cursor: "default", bg: "transparent" }}
               value={formData.maritalStatus || ""}
-              onChange={(e) => handleChange("maritalStatus", e.target.value)}
+              onChange={(e) => handleChange({ maritalStatus: e.target.value })}
               icon={!isEditing ? "none" : undefined}
             >
               <option value="">Select</option>
@@ -278,7 +367,7 @@ export const PersonalInformationForm = ({
               isDisabled={!isEditing}
               _disabled={{ opacity: 1, color: "gray.800", cursor: "default", bg: "transparent" }}
               value={formData.speciallyAbled ? "Yes" : "No"}
-              onChange={(e) => handleChange("speciallyAbled", e.target.value === "Yes")}
+              onChange={(e) => handleChange({ speciallyAbled: e.target.value === "Yes" })}
               icon={!isEditing ? "none" : undefined}
             >
               <option value="No">No</option>
@@ -290,12 +379,14 @@ export const PersonalInformationForm = ({
             <FormLabel fontWeight="semibold" color="gray.600">Languages</FormLabel>
             <Input
               value={formData.languages || ""}
-              onChange={(e) => handleChange("languages", e.target.value)}
+              onChange={handleLanguageChange}
+              onBlur={handleLanguageBlur}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
               isDisabled={!isEditing}
               _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
+              placeholder={isEditing ? "e.g. English, Hindi" : ""}
             />
           </FormControl>
         </SimpleGrid>
@@ -307,7 +398,7 @@ export const PersonalInformationForm = ({
             <FormLabel fontWeight="semibold" color="gray.600">School Name</FormLabel>
             <Input
               value={formData.schoolName || ""}
-              onChange={(e) => handleChange("schoolName", e.target.value)}
+              onChange={(e) => handleChange({ schoolName: e.target.value })}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
@@ -320,7 +411,7 @@ export const PersonalInformationForm = ({
             <FormLabel fontWeight="semibold" color="gray.600">Year of Joining</FormLabel>
             <Input
               value={formData.yearOfJoining ?? ""}
-              onChange={(e) => handleChange("yearOfJoining", e.target.value === "" ? "" : Number(e.target.value))}
+              onChange={(e) => handleChange({ yearOfJoining: e.target.value === "" ? "" : Number(e.target.value) })}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
@@ -334,7 +425,7 @@ export const PersonalInformationForm = ({
             <FormLabel fontWeight="semibold" color="gray.600">Program</FormLabel>
             <Input
               value={formData.programName || ""}
-              onChange={(e) => handleChange("programName", e.target.value)}
+              onChange={(e) => handleChange({ programName: e.target.value })}
               variant={inputVariant}
               focusBorderColor={focusBorderColor}
               px={inputPadding}
@@ -348,7 +439,7 @@ export const PersonalInformationForm = ({
               label="Specialization"
               valueKey="specializationName"
               idKey="specializationId"
-              options={specializationOptions}
+              options={filteredSpecializations}
               listId="specialization-options"
               isEnabled={isEditing}
               formData={formData}
@@ -362,7 +453,7 @@ export const PersonalInformationForm = ({
               <FormLabel fontWeight="semibold" color="gray.600">Specialization</FormLabel>
               <Input 
                 value={formData.specializationName || ""} 
-                onChange={(e) => handleChange("specializationName", e.target.value)}
+                onChange={(e) => handleChange({ specializationName: e.target.value })}
                 variant={inputVariant}
                 isDisabled={!isEditing} 
                 _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }} 
@@ -375,7 +466,7 @@ export const PersonalInformationForm = ({
               label="Major"
               valueKey="majorName"
               idKey="majorId"
-              options={majorOptions}
+              options={filteredMajors}
               listId="major-options"
               isEnabled={isEditing}
               formData={formData}
@@ -389,7 +480,7 @@ export const PersonalInformationForm = ({
               <FormLabel fontWeight="semibold" color="gray.600">Major</FormLabel>
               <Input 
                 value={formData.majorName || ""} 
-                onChange={(e) => handleChange("majorName", e.target.value)}
+                onChange={(e) => handleChange({ majorName: e.target.value })}
                 variant={inputVariant}
                 isDisabled={!isEditing} 
                 _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }} 
@@ -403,7 +494,6 @@ export const PersonalInformationForm = ({
               valueKey="minorName"
               idKey="minorId"
               options={minorOptions}
-              listId="minor-options"
               isEnabled={isEditing}
               formData={formData}
               handleChange={handleChange}
@@ -416,7 +506,7 @@ export const PersonalInformationForm = ({
               <FormLabel fontWeight="semibold" color="gray.600">Minor</FormLabel>
               <Input 
                 value={formData.minorName || ""} 
-                onChange={(e) => handleChange("minorName", e.target.value)}
+                onChange={(e) => handleChange({ minorName: e.target.value })}
                 variant={inputVariant}
                 isDisabled={!isEditing} 
                 _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }} 

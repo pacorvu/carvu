@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { setAccessToken } from '../services/tokenService';
+import { setAccessToken, getAccessToken } from '../services/tokenService';
 import { decodeJwt } from '../utils/jwt';
 
 const AuthContext = createContext(undefined);
@@ -47,6 +47,18 @@ export const AuthProvider = ({ children }) => {
   // Silent refresh on load
   useEffect(() => {
     const initAuth = async () => {
+      // Attempt to restore from localStorage first
+      const storedToken = getAccessToken();
+      if (storedToken) {
+        const payload = decodeJwt(storedToken);
+        const currentTime = Date.now() / 1000;
+        
+        // If token is valid and not expired
+        if (payload && payload.exp > currentTime) {
+          handleToken(storedToken);
+        }
+      }
+
       try {
         const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
           method: 'POST',

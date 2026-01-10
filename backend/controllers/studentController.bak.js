@@ -760,7 +760,17 @@ const saveSection = async (req, res) => {
 // Public meta endpoints (no auth required when mounted accordingly)
 const getMajors = async (req, res) => {
   try {
-    const result = await pool.query('select id, name from majors order by name asc');
+    const { programId } = req.query;
+    let query = 'select id, name, program_id from majors';
+    const params = [];
+
+    if (programId) {
+      query += ' WHERE program_id = $1';
+      params.push(programId);
+    }
+
+    query += ' order by name asc';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -778,7 +788,17 @@ const getMinors = async (req, res) => {
 
 const getSpecializations = async (req, res) => {
   try {
-    const result = await pool.query('select id, name from specializations order by name asc');
+    const { programId } = req.query;
+    let query = 'select id, name, program_id from specializations';
+    const params = [];
+
+    if (programId) {
+      query += ' WHERE program_id = $1';
+      params.push(programId);
+    }
+
+    query += ' order by name asc';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

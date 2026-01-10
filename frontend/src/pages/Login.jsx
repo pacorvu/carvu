@@ -34,8 +34,6 @@ export const Login = () => {
   }, [isAuthenticated, user, navigate]);
 
   const handleLogin = async () => {
-    console.log("Logging in with:", { email, password })
-    
     // Attempt login with AuthContext
     try {
       const result = await login(email, password);

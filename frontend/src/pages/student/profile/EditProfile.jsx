@@ -71,7 +71,9 @@ export const EditProfile = () => {
   // Block navigation when editing
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+      hasUnsavedChanges && 
+      currentLocation.pathname !== nextLocation.pathname && 
+      isEditing
   );
 
   // Handle browser refresh/close
@@ -264,17 +266,32 @@ export const EditProfile = () => {
                             Edit
                         </Button>
                     ) : (
-                        <Button 
-                            bg="#d4a960" 
-                            color="#20343c" 
-                            _hover={{ bg: "#c39850" }} 
-                            size="lg"
-                            isLoading={saving}
-                            loadingText="Saving..."
-                            onClick={handleSave}
-                        >
-                            Save Changes
-                        </Button>
+                        <>
+                            <Button 
+                                bg="#d4a960" 
+                                color="#20343c" 
+                                _hover={{ bg: "#c39850" }} 
+                                size="lg"
+                                isLoading={saving}
+                                loadingText="Saving..."
+                                onClick={handleSave}
+                            >
+                                Save Changes
+                            </Button>
+                            <Button 
+                                ml={4}
+                                variant="outline"
+                                colorScheme="red"
+                                size="lg"
+                                onClick={() => {
+                                    setData(initialDataRef.current || {});
+                                    setIsEditing(false);
+                                }}
+                                isDisabled={saving}
+                            >
+                                Cancel
+                            </Button>
+                        </>
                     )
                 }
             </HStack>

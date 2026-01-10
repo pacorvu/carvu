@@ -84,7 +84,7 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
       name: "", 
       parentType: "Guardian",
       occupation: "",
-      organisation: "",
+      organization: "",
       email: "",
       phoneCountryCode: "+91",
       phoneNumber: ""
@@ -174,10 +174,10 @@ export const ParentDetailsForm = ({ data = [], onUpdate, isEditing = false }) =>
                             _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
                         />
                     </Field>
-                    <Field label="Organisation">
+                    <Field label="Organization">
                         <Input 
-                            value={parent.organisation || ""} 
-                            onChange={(e) => handleParentChange(index, "organisation", e.target.value)} 
+                            value={parent.organization || ""} 
+                            onChange={(e) => handleParentChange(index, "organization", e.target.value)} 
                             variant="flushed" 
                             autoComplete="organization"
                             isDisabled={!isEditing} 

@@ -1,5 +1,5 @@
 import { Box } from "@chakra-ui/react"
-import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Outlet } from "react-router-dom"
+import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Outlet, Navigate } from "react-router-dom"
 import { Navbar } from "./components/Navbar"
 import { Footer } from "./components/Footer"
 import { Home } from "./pages/Home"
@@ -7,7 +7,20 @@ import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
 import { About } from "./pages/About"
 import { StudentDashboard } from "./pages/StudentDashboard"
-import { EditProfile } from "./pages/student/profile/EditProfile"
+import { PersonalProfile } from "./pages/student/profile/PersonalProfile"
+import { ContactProfile } from "./pages/student/profile/ContactProfile"
+import { FamilyProfile } from "./pages/student/profile/FamilyProfile"
+import { CareerProfile } from "./pages/student/profile/CareerProfile"
+import { EducationProfile } from "./pages/student/profile/EducationProfile"
+import { AcademicsProfile } from "./pages/student/profile/AcademicsProfile"
+import { ProjectsProfile } from "./pages/student/profile/ProjectsProfile"
+import { InternshipsProfile } from "./pages/student/profile/InternshipsProfile"
+import { TrainingsProfile } from "./pages/student/profile/TrainingsProfile"
+import { CertificationsProfile } from "./pages/student/profile/CertificationsProfile"
+import { PublicationsProfile } from "./pages/student/profile/PublicationsProfile"
+import { ExtraCurricularProfile } from "./pages/student/profile/ExtraCurricularProfile"
+import { OtherExperiencesProfile } from "./pages/student/profile/OtherExperiencesProfile"
+import { ResumeProfile } from "./pages/student/profile/ResumeProfile"
 import { PreviewProfile } from "./pages/student/profile/PreviewProfile"
 import { PlacementFeed } from "./pages/student/profile/PlacementFeed"
 import { StudentJobOffers } from "./pages/student/profile/StudentJobOffers"
@@ -97,8 +110,21 @@ const router = createBrowserRouter(
         </PlacementProtectedRoute>
       }>
         <Route path="/student-dashboard" element={<StudentDashboard />} />
-        <Route path="/student/profile" element={<EditProfile />} />
-        <Route path="/student/profile/:section" element={<EditProfile />} />
+        <Route path="/student/profile" element={<Navigate to="/student/profile/personal" replace />} />
+        <Route path="/student/profile/personal" element={<PersonalProfile />} />
+        <Route path="/student/profile/contact" element={<ContactProfile />} />
+        <Route path="/student/profile/family" element={<FamilyProfile />} />
+        <Route path="/student/profile/career" element={<CareerProfile />} />
+        <Route path="/student/profile/education" element={<EducationProfile />} />
+        <Route path="/student/profile/academics" element={<AcademicsProfile />} />
+        <Route path="/student/profile/projects" element={<ProjectsProfile />} />
+        <Route path="/student/profile/internships" element={<InternshipsProfile />} />
+        <Route path="/student/profile/trainings" element={<TrainingsProfile />} />
+        <Route path="/student/profile/certifications" element={<CertificationsProfile />} />
+        <Route path="/student/profile/publications" element={<PublicationsProfile />} />
+        <Route path="/student/profile/extra-curricular" element={<ExtraCurricularProfile />} />
+        <Route path="/student/profile/other" element={<OtherExperiencesProfile />} />
+        <Route path="/student/profile/resume" element={<ResumeProfile />} />
         <Route path="/student/profile/preview" element={<PreviewProfile />} />
         <Route path="/student/placements/feed" element={<PlacementFeed />} />
         <Route path="/student/placements/drive/:id" element={<StudentDriveDetails />} />
@@ -106,7 +132,7 @@ const router = createBrowserRouter(
         <Route path="/student/placements/events" element={<StudentEvents />} />
         <Route path="/student/placements/policy" element={<StudentPlacementPolicy />} />
         {/* Redirect old route for backward compatibility */}
-        <Route path="/student-profile" element={<EditProfile />} />
+        <Route path="/student-profile" element={<Navigate to="/student/profile/personal" replace />} />
       </Route>
 
       {/* Placement & Alumni Routes with Error Handling */}
