@@ -1,62 +1,59 @@
-/**
- * Component: PublicationsForm
- * 
- * Fields (Repeatable):
- * - title (Text, Required)
- * - journalConference (Text)
- * - publicationDate (Date)
- * - link (Url)
- * - description (Textarea)
- * 
- * Validation:
- * - title: Required
- * - link: Valid URL
- * 
- * API Contracts:
- * - GET /api/student/profile/publications
- * - POST /api/student/profile/publications
- * - PUT /api/student/profile/publications/:id
- * - DELETE /api/student/profile/publications/:id
- */
-
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea, Select } from "@chakra-ui/react"
-import { Field } from "../../ui/field"
-import { useState } from "react"
-import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+import React, { useState } from "react";
+import {
+  Box,
+  VStack,
+  Heading,
+  Button,
+  HStack,
+  Input,
+  SimpleGrid,
+  IconButton,
+  Text,
+  Card,
+  CardBody,
+  Collapse,
+  Flex,
+  Textarea,
+  Select,
+  useColorModeValue
+} from "@chakra-ui/react";
+import { Field } from "../../ui/field";
+import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 export const PublicationsForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const items = Array.isArray(data) ? data : []
+  const items = Array.isArray(data) ? data : (data.publications || []);
+  const bg = useColorModeValue("white", "gray.700");
 
   const handleChange = (index, field, value) => {
-    const newItems = [...items]
-    newItems[index] = { ...newItems[index], [field]: value }
-    onUpdate(newItems)
-  }
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    onUpdate(newItems);
+  };
 
   const handleAdd = () => {
     onUpdate([
       ...items,
       {
         title: "",
-        journalConferenceName: "",
+        publicationName: "",
         publicationType: "",
         publicationDate: "",
         authorCount: "",
         mentorName: "",
         skills: "",
-        link: "",
+        evidenceDocument: "",
         description: ""
       }
-    ])
-  }
+    ]);
+  };
 
   const handleDelete = (index) => {
-    const newItems = items.filter((_, i) => i !== index)
-    onUpdate(newItems)
-  }
+    const newItems = items.filter((_, i) => i !== index);
+    onUpdate(newItems);
+  };
 
   return (
-    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
+    <Box bg={bg} p={8} borderRadius="xl" shadow="sm">
       <Heading size="lg" mb={6} color="#20343c">Publications</Heading>
       
       <VStack spacing={6} align="stretch">
@@ -71,73 +68,87 @@ export const PublicationsForm = ({ data = {}, onUpdate, isEditing = false }) => 
           />
         ))}
 
-        <Button 
-          leftIcon={<FaPlus />} 
-          onClick={handleAdd} 
-          variant="outline" 
-          colorScheme="orange" 
-          borderColor="#d4a960" 
-          color="#d4a960"
-          _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-        >
-          Add Publication
-        </Button>
+        {isEditing && (
+          <Button 
+            leftIcon={<FaPlus />} 
+            onClick={handleAdd} 
+            variant="outline" 
+            colorScheme="orange" 
+            borderColor="#d4a960" 
+            color="#d4a960"
+            _hover={{ bg: "#fff5e6" }}
+          >
+            Add Publication
+          </Button>
+        )}
+
+        {items.length === 0 && (
+            <Box p={8} textAlign="center" color="gray.500" border="1px dashed" borderColor="gray.300" borderRadius="xl">
+                No publications added yet.
+            </Box>
+        )}
       </VStack>
     </Box>
-  )
-}
+  );
+};
 
 const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(true);
+  const borderColor = useColorModeValue("gray.200", "gray.600");
 
   return (
-    <Card variant="outline" borderColor="gray.200">
+    <Card variant="outline" borderColor={borderColor} borderRadius="lg" bg={useColorModeValue("gray.50", "gray.800")}>
       <CardBody p={4}>
         <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0}>
             <HStack onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex={1}>
-                <Text fontWeight="bold" color="gray.700">
-                    {item.title || `Publication ${index + 1}`}
+                <Heading size="sm" color="blue.600">
+                    {item.title || "New Publication"}
+                </Heading>
+                <Text fontSize="xs" color="gray.500">
+                    {item.publicationName || "Publication Name"}
                 </Text>
                 {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
             </HStack>
-            <IconButton 
-                size="sm" 
-                variant="ghost" 
-                color="red.500" 
-                aria-label="Delete" 
-                onClick={() => onDelete(index)}
-                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-            >
-                <FaTrash />
-            </IconButton>
+            {isEditing && (
+                <IconButton 
+                    size="sm" 
+                    variant="ghost" 
+                    colorScheme="red" 
+                    aria-label="Delete" 
+                    onClick={() => onDelete(index)}
+                >
+                    <FaTrash />
+                </IconButton>
+            )}
         </Flex>
 
         <Collapse in={isOpen}>
             <VStack gap={4} align="stretch">
                 <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Title">
+                    <Field label="Title (Required)" required>
                         <Input 
                             value={item.title || ""} 
                             onChange={(e) => onChange(index, "title", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            placeholder="e.g. AI in Healthcare"
                         />
                     </Field>
                     <Field label="Journal/Conference Name">
                         <Input 
-                            value={item.journalConferenceName || ""} 
-                            onChange={(e) => onChange(index, "journalConferenceName", e.target.value)} 
+                            value={item.publicationName || ""} 
+                            onChange={(e) => onChange(index, "publicationName", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            placeholder="e.g. IEEE Transactions"
                         />
                     </Field>
-                    <Field label="Publication Type">
+                    <Field label="Publication Type (Required)" required>
                         <Select 
                             value={item.publicationType || ""} 
                             onChange={(e) => onChange(index, "publicationType", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
                             placeholder="Select Type"
                         >
                             <option value="Journal">Journal</option>
@@ -152,7 +163,8 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.authorCount || ""} 
                             onChange={(e) => onChange(index, "authorCount", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            min={1}
                         />
                     </Field>
                     <Field label="Mentor Name">
@@ -160,7 +172,7 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.mentorName || ""} 
                             onChange={(e) => onChange(index, "mentorName", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
                         />
                     </Field>
                     <Field label="Skills">
@@ -169,7 +181,7 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             onChange={(e) => onChange(index, "skills", e.target.value)} 
                             variant="flushed"
                             placeholder="e.g. Research, Writing"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
                         />
                     </Field>
                     <Field label="Publication Date">
@@ -178,15 +190,16 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.publicationDate || ""} 
                             onChange={(e) => onChange(index, "publicationDate", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
                         />
                     </Field>
-                    <Field label="Link (DOI/URL)">
+                    <Field label="Evidence Document Link">
                         <Input 
-                            value={item.link || ""} 
-                            onChange={(e) => onChange(index, "link", e.target.value)} 
+                            value={item.evidenceDocument || ""} 
+                            onChange={(e) => onChange(index, "evidenceDocument", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            placeholder="https://..."
                         />
                     </Field>
                 </SimpleGrid>
@@ -196,12 +209,12 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                         onChange={(e) => onChange(index, "description", e.target.value)} 
                         variant="flushed"
                         rows={3}
-                        isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        isDisabled={!isEditing}
                     />
                 </Field>
             </VStack>
         </Collapse>
       </CardBody>
     </Card>
-  )
-}
+  );
+};

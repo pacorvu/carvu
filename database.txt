@@ -191,7 +191,6 @@ CREATE TABLE public.student_certifications (
   issue_date date,
   expiry_date date,
   proof_document text,
-  credential_id text,
   created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT student_certifications_pkey PRIMARY KEY (id),
@@ -309,14 +308,14 @@ CREATE TABLE public.student_placement_process (
 CREATE TABLE public.student_profile_details (
   usn text NOT NULL,
   brief_summary text,
-  key_expertise text[],
-  hobbies_interests text[],
+  key_expertise text,
+  hobbies_interests text,
   career_objective text,
-  dream_package text,
+  dream_package numeric,
   dream_company text,
-  future_goals text,
   created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  future_goals text,
   CONSTRAINT student_profile_details_pkey PRIMARY KEY (usn),
   CONSTRAINT fk_profile_student FOREIGN KEY (usn) REFERENCES public.students_personal_details(usn)
 );
@@ -328,8 +327,6 @@ CREATE TABLE public.student_projects (
   skills text,
   project_link text,
   snaps text,
-  role text,
-  team_size integer,
   created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   mentor_name text,
@@ -413,7 +410,6 @@ CREATE TABLE public.students_personal_details (
   CONSTRAINT fk_student_minor FOREIGN KEY (minor_id) REFERENCES public.minors(id),
   CONSTRAINT fk_student_school_name FOREIGN KEY (school_name) REFERENCES public.schools(name)
 );
-create index IF not exists idx_students_usn on public.students_personal_details using btree (usn) TABLESPACE pg_default;
 CREATE TABLE public.universities (
   id bigint NOT NULL DEFAULT nextval('universities_id_seq'::regclass),
   name text NOT NULL UNIQUE,
@@ -438,25 +434,6 @@ CREATE TABLE public.user_login (
   CONSTRAINT fk_login_role FOREIGN KEY (role_id) REFERENCES public.roles(id),
   CONSTRAINT user_login_usn_fkey FOREIGN KEY (usn) REFERENCES public.students_personal_details(usn)
 );
-CREATE TABLE public.auth_refresh_tokens ( 
-  id uuid not null default gen_random_uuid (), 
-  user_login_id bigint not null, 
-  token_hash text not null, 
-  jti uuid not null, 
-  expires_at timestamp with time zone not null, 
-  revoked_at timestamp with time zone null, 
-  replaced_by uuid null, 
-  user_agent text null, 
-  ip text null, 
-  created_at timestamp with time zone not null default now(), 
-  constraint auth_refresh_tokens_pkey primary key (id), 
-  constraint unique_user_jti unique (user_login_id, jti), 
-  constraint auth_refresh_tokens_user_login_id_fkey foreign KEY (user_login_id) references user_login (id) on delete CASCADE 
-) TABLESPACE pg_default; 
- 
-create index IF not exists idx_auth_refresh_tokens_user_login_id on public.auth_refresh_tokens using btree (user_login_id) TABLESPACE pg_default; 
- 
-create index IF not exists idx_auth_refresh_tokens_token_hash on public.auth_refresh_tokens using btree (token_hash) TABLESPACE pg_default;
 CREATE TABLE public.user_otp_verification (
   id bigint NOT NULL DEFAULT nextval('user_otp_verification_id_seq'::regclass),
   identifier character varying NOT NULL,

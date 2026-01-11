@@ -1,8 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   VStack,
-  FormControl,
-  FormLabel,
   Input,
   Button,
   SimpleGrid,
@@ -10,17 +8,30 @@ import {
   Heading,
   IconButton,
   useColorModeValue,
+  Flex,
+  Text,
+  Collapse
 } from "@chakra-ui/react";
-import { FaPlus, FaTrash } from "react-icons/fa";
+import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { Field } from "../../ui/field";
 
 export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
   const bg = useColorModeValue("white", "gray.700");
-  const certifications = Array.isArray(data) ? data : [];
+  const certifications = Array.isArray(data) ? data : (data.certifications || []);
 
   const handleAdd = () => {
     const newCertifications = [
       ...certifications,
-      { name: "", organization: "", issueDate: "", expiryDate: "", credentialId: "", credentialUrl: "", certificationType: "", skills: "", score: "" },
+      { 
+        title: "", 
+        organization: "", 
+        certificationType: "", 
+        skills: "", 
+        score: "", 
+        issueDate: "", 
+        expiryDate: "", 
+        proofDocument: "" 
+      },
     ];
     onUpdate(newCertifications);
   };
@@ -30,16 +41,28 @@ export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
     onUpdate(newCertifications);
   };
 
-  const handleCertificationChange = (index, field, value) => {
+  const handleChange = (index, field, value) => {
     const newCertifications = [...certifications];
     newCertifications[index] = { ...newCertifications[index], [field]: value };
     onUpdate(newCertifications);
   };
 
   return (
-    <VStack spacing={6} align="stretch" bg={bg} p={6} borderRadius="lg" boxShadow="sm">
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Heading size="md">Certifications</Heading>
+    <Box bg={bg} p={8} borderRadius="xl" shadow="sm">
+      <Heading size="lg" mb={6} color="#20343c">Certifications</Heading>
+
+      <VStack spacing={6} align="stretch">
+        {certifications.map((cert, index) => (
+          <CertificationItem 
+            key={index} 
+            index={index} 
+            item={cert} 
+            onChange={handleChange} 
+            onDelete={handleRemove} 
+            isEditing={isEditing}
+          />
+        ))}
+
         {isEditing && (
           <Button
             leftIcon={<FaPlus />}
@@ -49,159 +72,147 @@ export const CertificationsForm = ({ data = {}, onUpdate, isEditing }) => {
             borderColor="#d4a960"
             color="#d4a960"
             _hover={{ bg: "#fff5e6" }}
-            isDisabled={!isEditing}
-            _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
           >
             Add Certification
           </Button>
         )}
-      </Box>
 
-      {certifications.map((cert, index) => (
-        <Box
-          key={index}
-          p={4}
-          borderWidth="1px"
-          borderRadius="md"
-          position="relative"
-        >
-          {isEditing && (
-            <IconButton
-              icon={<FaTrash />}
-              position="absolute"
-              top={2}
-              right={2}
-              colorScheme="red"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleRemove(index)}
-              aria-label="Remove certification"
-            />
-          )}
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={isEditing ? 6 : 0}>
-            <FormControl>
-              <FormLabel>Certification Name</FormLabel>
-              <Input
-                value={cert.name || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "name", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Issuing Organization</FormLabel>
-              <Input
-                value={cert.organization || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "organization", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Certification Type</FormLabel>
-              <Input
-                value={cert.certificationType || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "certificationType", e.target.value)
-                }
-                variant="flushed"
-                placeholder="e.g. Technical, Professional"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Skills</FormLabel>
-              <Input
-                value={cert.skills || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "skills", e.target.value)
-                }
-                variant="flushed"
-                placeholder="e.g. React, Java"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Score / Grade</FormLabel>
-              <Input
-                value={cert.score || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "score", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Issue Date</FormLabel>
-              <Input
-                type="date"
-                value={cert.issueDate || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "issueDate", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Expiry Date</FormLabel>
-              <Input
-                type="date"
-                value={cert.expiryDate || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "expiryDate", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Credential ID</FormLabel>
-              <Input
-                value={cert.credentialId || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "credentialId", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Credential URL</FormLabel>
-              <Input
-                value={cert.credentialUrl || ""}
-                onChange={(e) =>
-                  handleCertificationChange(index, "credentialUrl", e.target.value)
-                }
-                variant="flushed"
-                isDisabled={!isEditing}
-                _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-              />
-            </FormControl>
-          </SimpleGrid>
-        </Box>
-      ))}
-    </VStack>
+        {certifications.length === 0 && (
+            <Box p={8} textAlign="center" color="gray.500" border="1px dashed" borderColor="gray.300" borderRadius="xl">
+                No certifications added yet.
+            </Box>
+        )}
+      </VStack>
+    </Box>
   );
+};
+
+const CertificationItem = ({ index, item, onChange, onDelete, isEditing }) => {
+    const [isOpen, setIsOpen] = useState(true);
+    const borderColor = useColorModeValue("gray.200", "gray.600");
+
+    return (
+        <Box 
+            borderWidth="1px" 
+            borderColor={borderColor} 
+            borderRadius="lg" 
+            p={4} 
+            bg={useColorModeValue("gray.50", "gray.800")}
+        >
+            <Flex justifyContent="space-between" alignItems="center" mb={isOpen ? 4 : 0}>
+                <Box onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex="1">
+                    <Heading size="sm" color="blue.600">
+                        {item.title || "New Certification"}
+                    </Heading>
+                    <Text fontSize="xs" color="gray.500">
+                        {item.organization || "Organization Name"}
+                    </Text>
+                </Box>
+                <Flex alignItems="center" gap={2}>
+                    <IconButton
+                        icon={isOpen ? <FaChevronUp /> : <FaChevronDown />}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsOpen(!isOpen)}
+                        aria-label="Toggle details"
+                    />
+                    {isEditing && (
+                        <IconButton
+                            icon={<FaTrash />}
+                            colorScheme="red"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(index)}
+                            aria-label="Remove certification"
+                        />
+                    )}
+                </Flex>
+            </Flex>
+
+            <Collapse in={isOpen}>
+                <VStack spacing={4} align="stretch">
+                    <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+                        <Field label="Certification Name (Required)" required>
+                            <Input 
+                                value={item.title || ""} 
+                                onChange={(e) => onChange(index, "title", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                                placeholder="e.g. AWS Solutions Architect"
+                            />
+                        </Field>
+
+                        <Field label="Issuing Organization (Required)" required>
+                            <Input 
+                                value={item.organization || ""} 
+                                onChange={(e) => onChange(index, "organization", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                                placeholder="e.g. Amazon Web Services"
+                            />
+                        </Field>
+
+                        <Field label="Certification Type">
+                            <Input 
+                                value={item.certificationType || ""} 
+                                onChange={(e) => onChange(index, "certificationType", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                                placeholder="e.g. Technical / Professional"
+                            />
+                        </Field>
+
+                        <Field label="Skills">
+                            <Input 
+                                value={item.skills || ""} 
+                                onChange={(e) => onChange(index, "skills", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                                placeholder="e.g. Cloud Computing, Architecture"
+                            />
+                        </Field>
+
+                        <Field label="Score / Grade">
+                            <Input 
+                                value={item.score || ""} 
+                                onChange={(e) => onChange(index, "score", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                            />
+                        </Field>
+
+                        <Field label="Issue Date">
+                            <Input 
+                                type="date"
+                                value={item.issueDate || ""} 
+                                onChange={(e) => onChange(index, "issueDate", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                            />
+                        </Field>
+
+                        <Field label="Expiry Date">
+                            <Input 
+                                type="date"
+                                value={item.expiryDate || ""} 
+                                onChange={(e) => onChange(index, "expiryDate", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                            />
+                        </Field>
+
+                        <Field label="Proof Document Link">
+                             <Input 
+                                value={item.proofDocument || ""} 
+                                onChange={(e) => onChange(index, "proofDocument", e.target.value)} 
+                                variant="flushed"
+                                isDisabled={!isEditing}
+                                placeholder="https://..."
+                            />
+                        </Field>
+                    </SimpleGrid>
+                </VStack>
+            </Collapse>
+        </Box>
+    );
 };

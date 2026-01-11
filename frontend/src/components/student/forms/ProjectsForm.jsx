@@ -6,18 +6,15 @@
  * - description (Textarea)
  * - skills (Text, Comma separated)
  * - projectLink (Url)
- * - role (Text)
- * - teamSize (Number)
+ * - snaps (Url/Text)
+ * - mentorName (Text)
  * 
  * Validation:
  * - title: Required
- * - projectLink: Valid URL
  * 
  * API Contracts:
  * - GET /api/student/profile/projects
  * - POST /api/student/profile/projects
- * - PUT /api/student/profile/projects/:id
- * - DELETE /api/student/profile/projects/:id
  */
 
 import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
@@ -26,7 +23,8 @@ import { useState } from "react"
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
 
 export const ProjectsForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const items = Array.isArray(data) ? data : []
+  // Ensure we handle data as array (similar to Academics/Education)
+  const items = Array.isArray(data) ? data : (data.projects || [])
 
   const handleChange = (index, field, value) => {
     const newItems = [...items]
@@ -40,12 +38,10 @@ export const ProjectsForm = ({ data = {}, onUpdate, isEditing = false }) => {
       {
         title: "",
         description: "",
-        skills: "", // Changed to string for input
+        skills: "",
         projectLink: "",
-        role: "",
-        teamSize: "",
-        mentorName: "",
-        proofFile: ""
+        snaps: "",
+        mentorName: ""
       }
     ])
   }
@@ -71,18 +67,25 @@ export const ProjectsForm = ({ data = {}, onUpdate, isEditing = false }) => {
           />
         ))}
 
-        <Button 
-          leftIcon={<FaPlus />} 
-          onClick={handleAdd} 
-          variant="outline" 
-          colorScheme="orange" 
-          borderColor="#d4a960" 
-          color="#d4a960"
-          _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-        >
-          Add Project
-        </Button>
+        {isEditing && (
+            <Button 
+            leftIcon={<FaPlus />} 
+            onClick={handleAdd} 
+            variant="outline" 
+            colorScheme="orange" 
+            borderColor="#d4a960" 
+            color="#d4a960"
+            _hover={{ bg: "#fff5e6" }}
+            >
+            Add Project
+            </Button>
+        )}
+        
+        {items.length === 0 && (
+            <Box p={8} textAlign="center" color="gray.500" border="1px dashed" borderColor="gray.300" borderRadius="xl">
+                No projects added yet.
+            </Box>
+        )}
       </VStack>
     </Box>
   )
@@ -101,44 +104,29 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                 </Text>
                 {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
             </HStack>
-            <IconButton 
-                size="sm" 
-                variant="ghost" 
-                color="red.500" 
-                aria-label="Delete" 
-                onClick={() => onDelete(index)}
-                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-            >
-                <FaTrash />
-            </IconButton>
+            {isEditing && (
+                <IconButton 
+                    size="sm" 
+                    variant="ghost" 
+                    color="red.500" 
+                    aria-label="Delete" 
+                    onClick={() => onDelete(index)}
+                >
+                    <FaTrash />
+                </IconButton>
+            )}
         </Flex>
 
         <Collapse in={isOpen}>
             <VStack mt={4} align="stretch" gap={4}>
                 <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Project Title">
+                    <Field label="Project Title (Required)" required>
                         <Input 
                             value={item.title || ""} 
                             onChange={(e) => onChange(index, "title", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                    </Field>
-                    <Field label="Role">
-                        <Input 
-                            value={item.role || ""} 
-                            onChange={(e) => onChange(index, "role", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                    </Field>
-                    <Field label="Team Size">
-                        <Input 
-                            type="number"
-                            value={item.teamSize || ""} 
-                            onChange={(e) => onChange(index, "teamSize", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing} 
+                            placeholder="e.g. E-Commerce Website"
                         />
                     </Field>
                     <Field label="Mentor Name">
@@ -146,7 +134,8 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.mentorName || ""} 
                             onChange={(e) => onChange(index, "mentorName", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            placeholder="e.g. Dr. Smith"
                         />
                     </Field>
                     <Field label="Technologies (comma separated)">
@@ -155,7 +144,7 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.skills || ""} 
                             onChange={(e) => onChange(index, "skills", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing} 
                         />
                     </Field>
                     <Field label="Project Link (GitHub/Live)">
@@ -163,19 +152,18 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             value={item.projectLink || ""} 
                             onChange={(e) => onChange(index, "projectLink", e.target.value)} 
                             variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            isDisabled={!isEditing}
+                            placeholder="https://github.com/..."
                         />
                     </Field>
-                    <Field label="Upload Proof (Screenshot/Certificate)">
+                    <Field label="Snaps/Proof Link">
                         <Input 
-                            type="file" 
-                            p={1} 
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
+                            value={item.snaps || ""}
+                            onChange={(e) => onChange(index, "snaps", e.target.value)} 
                             variant="flushed" 
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
+                            isDisabled={!isEditing}
+                            placeholder="https://drive.google.com/..." 
                         />
-                        {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
                     </Field>
                 </SimpleGrid>
                 <Field label="Description">
@@ -184,7 +172,8 @@ const ProjectItem = ({ index, item, onChange, onDelete, isEditing }) => {
                         onChange={(e) => onChange(index, "description", e.target.value)} 
                         variant="flushed"
                         rows={3}
-                        isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        isDisabled={!isEditing}
+                        placeholder="Briefly describe your project..."
                     />
                 </Field>
             </VStack>

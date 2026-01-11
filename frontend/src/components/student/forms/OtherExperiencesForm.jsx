@@ -3,28 +3,23 @@
  * 
  * Fields (Repeatable):
  * - title (Text, Required)
- * - type (Text)
+ * - organization (Text)
+ * - location (Text)
  * - startDate (Date)
  * - endDate (Date)
+ * - skills (Text)
  * - description (Textarea)
- * 
- * Validation:
- * - title: Required
- * 
- * API Contracts:
- * - GET /api/student/profile/other
- * - POST /api/student/profile/other
- * - PUT /api/student/profile/other/:id
- * - DELETE /api/student/profile/other/:id
+ * - proofDocument (Link)
  */
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
+import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea, useColorModeValue } from "@chakra-ui/react"
 import { Field } from "../../ui/field"
 import { useState } from "react"
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
 
 export const OtherExperiencesForm = ({ data = {}, onUpdate, isEditing = false }) => {
-  const items = Array.isArray(data) ? data : []
+  const items = Array.isArray(data) ? data : (data.otherExperiences || [])
+  const bg = useColorModeValue("white", "gray.700")
 
   const handleChange = (index, field, value) => {
     const newItems = [...items]
@@ -43,7 +38,7 @@ export const OtherExperiencesForm = ({ data = {}, onUpdate, isEditing = false })
         endDate: "",
         skills: "",
         description: "",
-        proofFile: ""
+        proofDocument: ""
       }
     ])
   }
@@ -54,7 +49,7 @@ export const OtherExperiencesForm = ({ data = {}, onUpdate, isEditing = false })
   }
 
   return (
-    <Box bg="white" p={8} borderRadius="xl" shadow="sm">
+    <Box bg={bg} p={8} borderRadius="xl" shadow="sm">
       <Heading size="lg" mb={6} color="#20343c">Other Experiences</Heading>
       
       <VStack spacing={6} align="stretch">
@@ -69,18 +64,25 @@ export const OtherExperiencesForm = ({ data = {}, onUpdate, isEditing = false })
           />
         ))}
 
-        <Button 
-          leftIcon={<FaPlus />} 
-          onClick={handleAdd} 
-          variant="outline" 
-          colorScheme="orange" 
-          borderColor="#d4a960" 
-          color="#d4a960"
-          _hover={{ bg: "#fff5e6" }}
-          isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-        >
-          Add Experience
-        </Button>
+        {isEditing && (
+          <Button 
+            leftIcon={<FaPlus />} 
+            onClick={handleAdd} 
+            variant="outline" 
+            colorScheme="orange" 
+            borderColor="#d4a960" 
+            color="#d4a960"
+            _hover={{ bg: "#fff5e6" }}
+          >
+            Add Experience
+          </Button>
+        )}
+
+        {items.length === 0 && (
+            <Box p={8} textAlign="center" color="gray.500" border="1px dashed" borderColor="gray.300" borderRadius="xl">
+                No other experiences added yet.
+            </Box>
+        )}
       </VStack>
     </Box>
   )
@@ -95,95 +97,95 @@ const OtherExperienceItem = ({ index, item, onChange, onDelete, isEditing }) => 
         <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0}>
             <HStack onClick={() => setIsOpen(!isOpen)} cursor="pointer" flex={1}>
                 <Text fontWeight="bold" color="gray.700">
-                    {item.title || `Experience ${index + 1}`}
+                    {item.title || "New Experience"}
                 </Text>
                 {isOpen ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
             </HStack>
-            <IconButton 
-                size="sm" 
-                variant="ghost" 
-                color="red.500" 
-                aria-label="Delete" 
-                onClick={() => onDelete(index)}
-                isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-            >
-                <FaTrash />
-            </IconButton>
+            {isEditing && (
+                <IconButton 
+                    icon={<FaTrash />} 
+                    size="sm" 
+                    colorScheme="red" 
+                    variant="ghost" 
+                    onClick={() => onDelete(index)}
+                    aria-label="Delete experience"
+                />
+            )}
         </Flex>
 
-        <Collapse in={isOpen}>
-            <VStack spacing={4} align="stretch">
-                <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-                    <Field label="Title / Role">
+        <Collapse in={isOpen} animateOpacity>
+            <VStack spacing={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
+                    <Field label="Title" required>
                         <Input 
                             value={item.title || ""} 
-                            onChange={(e) => onChange(index, "title", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            onChange={(e) => onChange(index, "title", e.target.value)}
+                            placeholder="e.g. Volunteer, Club Member"
+                            readOnly={!isEditing}
                         />
                     </Field>
-                    <Field label="Organization">
+                    <Field label="Organization" required>
                         <Input 
                             value={item.organization || ""} 
-                            onChange={(e) => onChange(index, "organization", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            onChange={(e) => onChange(index, "organization", e.target.value)}
+                            placeholder="e.g. NGO Name, Student Body"
+                            readOnly={!isEditing}
                         />
                     </Field>
-                    <Field label="Location">
-                        <Input 
-                            value={item.location || ""} 
-                            onChange={(e) => onChange(index, "location", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                    </Field>
+                </SimpleGrid>
+
+                <Field label="Location">
+                    <Input 
+                        value={item.location || ""} 
+                        onChange={(e) => onChange(index, "location", e.target.value)}
+                        placeholder="e.g. Bangalore, Remote"
+                        readOnly={!isEditing}
+                    />
+                </Field>
+
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} w="full">
                     <Field label="Start Date">
                         <Input 
-                            type="date"
-                            value={item.startDate || ""} 
-                            onChange={(e) => onChange(index, "startDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            type="date" 
+                            value={item.startDate ? item.startDate.split('T')[0] : ""} 
+                            onChange={(e) => onChange(index, "startDate", e.target.value)}
+                            readOnly={!isEditing}
                         />
                     </Field>
                     <Field label="End Date">
                         <Input 
-                            type="date"
-                            value={item.endDate || ""} 
-                            onChange={(e) => onChange(index, "endDate", e.target.value)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                            type="date" 
+                            value={item.endDate ? item.endDate.split('T')[0] : ""} 
+                            onChange={(e) => onChange(index, "endDate", e.target.value)}
+                            readOnly={!isEditing}
                         />
-                    </Field>
-                    <Field label="Skills">
-                        <Input 
-                            value={item.skills || ""} 
-                            onChange={(e) => onChange(index, "skills", e.target.value)} 
-                            variant="flushed"
-                            placeholder="e.g. Leadership, Management"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                    </Field>
-                    <Field label="Upload Proof">
-                        <Input 
-                            type="file"
-                            p={1}
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => onChange(index, "proofFile", e.target.files[0]?.name)} 
-                            variant="flushed"
-                            isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
-                        />
-                        {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
                     </Field>
                 </SimpleGrid>
+
+                <Field label="Skills Used/Gained">
+                    <Input 
+                        value={item.skills || ""} 
+                        onChange={(e) => onChange(index, "skills", e.target.value)}
+                        placeholder="e.g. Teamwork, Event Management"
+                        readOnly={!isEditing}
+                    />
+                </Field>
+
                 <Field label="Description">
                     <Textarea 
                         value={item.description || ""} 
-                        onChange={(e) => onChange(index, "description", e.target.value)} 
-                        variant="flushed"
-                        rows={3}
-                        isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+                        onChange={(e) => onChange(index, "description", e.target.value)}
+                        placeholder="Brief description of your role and contributions..."
+                        readOnly={!isEditing}
+                    />
+                </Field>
+
+                <Field label="Proof Document URL">
+                    <Input 
+                        value={item.proofDocument || ""} 
+                        onChange={(e) => onChange(index, "proofDocument", e.target.value)}
+                        placeholder="https://..."
+                        readOnly={!isEditing}
                     />
                 </Field>
             </VStack>

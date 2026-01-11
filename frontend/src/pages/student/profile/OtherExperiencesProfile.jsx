@@ -2,5 +2,5 @@ import { OtherExperiencesForm } from "../../../components/student/forms/OtherExp
 import { GenericProfileSection } from "./GenericProfileSection"
 
 export const OtherExperiencesProfile = () => {
-  return <GenericProfileSection sectionKey="other" FormComponent={OtherExperiencesForm} />
+  return <GenericProfileSection sectionKey="other-experiences" FormComponent={OtherExperiencesForm} />
 }

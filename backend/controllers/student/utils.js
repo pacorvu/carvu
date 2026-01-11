@@ -202,55 +202,58 @@ const columnMapping = {
     toDb: {
       jobRole: 'job_role',
       role: 'job_role',
-      companyName: 'organization',
       organization: 'organization',
+      companyName: 'organization',
       organizationDetails: 'organization_details',
       durationMonths: 'duration_months',
       startDate: 'start_date',
       endDate: 'end_date',
       location: 'location',
       stipend: 'stipend',
+      skills: 'skills',
+      description: 'description',
       mentorName: 'mentor_name',
       proofDocument: 'proof_document',
-      certificateLink: 'proof_document',
-      skills: 'skills',
-      description: 'description'
+      proofFile: 'proof_document',
+      certificateLink: 'proof_document'
     },
     fromDb: {
-      job_role: 'role',
-      organization: 'companyName',
+      job_role: 'jobRole',
+      organization: 'organization',
       organization_details: 'organizationDetails',
       duration_months: 'durationMonths',
       start_date: 'startDate',
       end_date: 'endDate',
       location: 'location',
       stipend: 'stipend',
-      mentor_name: 'mentorName',
-      proof_document: 'certificateLink',
       skills: 'skills',
-      description: 'description'
+      description: 'description',
+      mentor_name: 'mentorName',
+      proof_document: 'proofDocument'
     }
   },
+
   trainings: {
     toDb: {
       title: 'title',
-      organization: 'institution', // Form uses organization
+      organization: 'institution',
       institution: 'institution',
       trainingType: 'training_type',
       startDate: 'start_date',
       endDate: 'end_date',
       proofDocument: 'proof_document',
+      proofFile: 'proof_document',
       certificateLink: 'proof_document',
       skills: 'skills',
       description: 'description'
     },
     fromDb: {
       title: 'title',
-      institution: 'organization', // Match form
+      institution: 'organization',
       training_type: 'trainingType',
       start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'certificateLink',
+      proof_document: 'proofDocument',
       skills: 'skills',
       description: 'description'
     }
@@ -259,24 +262,24 @@ const columnMapping = {
     toDb: {
       title: 'title',
       publicationName: 'publication_name',
-      journalConference: 'publication_name', // Form uses journalConference
+      journalConference: 'publication_name',
       publicationType: 'publication_type',
       publicationDate: 'publication_date',
       authorCount: 'author_count',
       mentorName: 'mentor_name',
       evidenceDocument: 'evidence_document',
-      link: 'evidence_document', // Form uses link?
+      link: 'evidence_document',
       description: 'description',
       skills: 'skills'
     },
     fromDb: {
       title: 'title',
-      publication_name: 'journalConference',
+      publication_name: 'publicationName',
       publication_type: 'publicationType',
       publication_date: 'publicationDate',
       author_count: 'authorCount',
       mentor_name: 'mentorName',
-      evidence_document: 'link', // Form uses link
+      evidence_document: 'evidenceDocument',
       description: 'description',
       skills: 'skills'
     }
@@ -288,7 +291,6 @@ const columnMapping = {
       startDate: 'start_date',
       endDate: 'end_date',
       proofDocument: 'proof_document',
-      proofFile: 'proof_document',
       location: 'location',
       skills: 'skills',
       description: 'description'
@@ -298,7 +300,7 @@ const columnMapping = {
       organization: 'organization',
       start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'proofFile',
+      proof_document: 'proofDocument',
       location: 'location',
       skills: 'skills',
       description: 'description'
@@ -312,23 +314,22 @@ const columnMapping = {
       organization: 'organization',
       issueDate: 'issue_date',
       expiryDate: 'expiry_date',
+      proofDocument: 'proof_document',
       credentialUrl: 'proof_document',
       certificateLink: 'proof_document',
       certificationType: 'certification_type',
       skills: 'skills',
-      score: 'score',
-      credentialId: 'credential_id'
+      score: 'score'
     },
     fromDb: {
-      title: 'name', // Map title back to name for frontend
+      title: 'title',
       organization: 'organization',
       issue_date: 'issueDate',
       expiry_date: 'expiryDate',
-      proof_document: 'credentialUrl', // Map back to credentialUrl
+      proof_document: 'proofDocument',
       certification_type: 'certificationType',
       skills: 'skills',
-      score: 'score',
-      credential_id: 'credentialId'
+      score: 'score'
     }
   },
   extraCurricular: {
@@ -336,26 +337,26 @@ const columnMapping = {
       activityName: 'activity_name',
       startDate: 'start_date',
       endDate: 'end_date',
-      date: 'start_date', // Form uses date
+      date: 'start_date',
       proofDocument: 'proof_document',
       proofFile: 'proof_document',
       activityType: 'activity_type',
       role: 'role',
       organization: 'organization',
       achievements: 'achievements',
-      achievement: 'achievements', // Form uses achievement
+      achievement: 'achievements',
       skills: 'skills',
       description: 'description'
     },
     fromDb: {
       activity_name: 'activityName',
-      start_date: 'date', // Form uses date
+      start_date: 'startDate',
       end_date: 'endDate',
-      proof_document: 'proofFile',
+      proof_document: 'proofDocument',
       activity_type: 'activityType',
       role: 'role',
       organization: 'organization',
-      achievements: 'achievement',
+      achievements: 'achievements',
       skills: 'skills',
       description: 'description'
     }

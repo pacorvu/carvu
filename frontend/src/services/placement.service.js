@@ -9,10 +9,14 @@ export const PlacementService = {
       const res = await fetch(`${API_URL}/placement/companies`, {
         headers: getHeaders()
       });
-      if (!res.ok) throw new Error('Failed to fetch companies');
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch companies');
+      }
       return await res.json();
     } catch (error) {
       console.error('Error fetching companies:', error);
+      if (error.message === 'Forbidden') throw error;
       return [];
     }
   },
@@ -39,12 +43,50 @@ export const PlacementService = {
       const res = await fetch(`${API_URL}/placement/drives`, {
         headers: getHeaders()
       });
-      if (!res.ok) throw new Error('Failed to fetch drives');
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch drives');
+      }
       return await res.json();
     } catch (error) {
       console.error('Error fetching drives:', error);
+      if (error.message === 'Forbidden') throw error;
       return [];
     }
+  },
+
+  addPlacementDrive: async (data) => {
+    const res = await fetch(`${API_URL}/placement/drives`, {
+        method: 'POST',
+        headers: {
+            ...getHeaders(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to add placement drive');
+    }
+    return await res.json();
+  },
+
+  updatePlacementDrive: async (id, data) => {
+    const res = await fetch(`${API_URL}/placement/drives/${id}`, {
+        method: 'PUT',
+        headers: {
+            ...getHeaders(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to update placement drive');
+    }
+    return await res.json();
   },
 
   getDriveById: async (id) => {
@@ -60,6 +102,43 @@ export const PlacementService = {
     } catch (error) {
       console.error('Error fetching drive:', error);
       return null;
+    }
+  },
+
+  getSchools: async () => {
+    try {
+      const res = await fetch(`${API_URL}/student/meta/schools`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch schools');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+      if (error.message === 'Forbidden') throw error;
+      return [];
+    }
+  },
+
+  getPrograms: async (schoolId) => {
+    try {
+      const url = schoolId 
+        ? `${API_URL}/student/meta/programs?schoolId=${schoolId}` 
+        : `${API_URL}/student/meta/programs`;
+      const res = await fetch(url, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch programs');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      if (error.message === 'Forbidden') throw error;
+      return [];
     }
   },
   
@@ -123,6 +202,23 @@ export const PlacementService = {
       console.error('Error fetching job offers:', error);
       return [];
     }
+  },
+
+  addJobOffer: async (data) => {
+    const res = await fetch(`${API_URL}/placement/job-offers`, {
+        method: 'POST',
+        headers: {
+            ...getHeaders(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to add job offer');
+    }
+    return await res.json();
   },
 
   getStudentOffers: async (usn) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Heading,
@@ -36,9 +36,12 @@ import {
   FormLabel,
   useDisclosure,
   Textarea,
-  Spinner
+  Spinner,
+  Checkbox,
+  Divider
 } from '@chakra-ui/react';
 import { SearchIcon, AddIcon, ArrowBackIcon, DownloadIcon } from '@chakra-ui/icons';
+import { BsLayoutThreeColumns } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
@@ -50,12 +53,42 @@ const JobOffers = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Column Visibility State
+  const baseColumns = [
+    { id: 'usn', label: 'USN' },
+    { id: 'student', label: 'Student' },
+    { id: 'company', label: 'Company' },
+    { id: 'designation', label: 'Designation' },
+    { id: 'job_type', label: 'Job Type' },
+    { id: 'ctc', label: 'CTC (LPA)' },
+    { id: 'status', label: 'Status' },
+  ];
+
+  const columnGroups = [
+    {
+      id: 'offer_details',
+      label: 'Offer Details',
+      columns: [
+        { id: 'usn', label: 'USN' },
+        { id: 'student', label: 'Student' },
+        { id: 'company', label: 'Company' },
+        { id: 'designation', label: 'Designation' },
+        { id: 'job_type', label: 'Job Type' },
+        { id: 'ctc', label: 'CTC (LPA)' },
+        { id: 'status', label: 'Status' },
+      ],
+    },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(baseColumns.map(c => c.id));
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedJobType, setSelectedJobType] = useState('');
-  const [selectedSchool, setSelectedSchool] = useState('');
+  const [selectedSchools, setSelectedSchools] = useState([]);
 
   // New Offer Form State
   const [newOffer, setNewOffer] = useState({
@@ -80,8 +113,8 @@ const JobOffers = () => {
   };
 
   const handleAddOffer = async () => {
-    if (!newOffer.student_name || !newOffer.company_name) {
-      toast({ title: "Student Name and Company are required", status: "warning" });
+    if (!newOffer.usn || !newOffer.company_name) {
+      toast({ title: "Student USN and Company are required", status: "warning" });
       return;
     }
 
@@ -114,24 +147,41 @@ const JobOffers = () => {
       });
       fetchOffers();
     } catch (error) {
-      toast({ title: "Error adding offer", status: "error" });
+      toast({ title: error.message || "Error adding offer", status: "error" });
     }
   };
 
-  // Stats for the School Filter Cards
-  // Hardcoded to match screenshot for visual accuracy, but could be dynamic
-  const schoolStats = [
-    { name: 'SoB', count: 222 },
-    { name: 'SoCSE - BTech', count: 198 },
-    { name: 'SoB - PG', count: 167 },
-    { name: 'SoD - UG', count: 113 },
-    { name: 'SoCSE - BSc', count: 106 },
-    { name: 'SoB (Hons)', count: 62 },
-    { name: 'SoLAS', count: 37 },
-    { name: 'SoD - PG', count: 33 },
-    { name: 'SoE', count: 22 },
-    { name: 'SoFMA', count: 6 },
+  // Master list of schools to ensure all are displayed
+  const ALL_SCHOOLS = [
+    'SoB',
+    'SoCSE - BTech',
+    'SoB - PG',
+    'SoD - UG',
+    'SoCSE - BSc',
+    'SoB (Hons)',
+    'SoLAS',
+    'SoD - PG',
+    'SoE',
+    'SoFMA'
   ];
+
+  // Stats for the School Filter Cards
+  const schoolStats = useMemo(() => {
+    // Initialize with 0 for all master schools
+    const stats = ALL_SCHOOLS.reduce((acc, school) => {
+      acc[school] = 0;
+      return acc;
+    }, {});
+
+    offers.forEach(offer => {
+      const school = offer.school ? offer.school.trim() : 'Other';
+      stats[school] = (stats[school] || 0) + 1;
+    });
+    
+    return Object.entries(stats)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [offers]);
 
   useEffect(() => {
     fetchOffers();
@@ -158,7 +208,7 @@ const JobOffers = () => {
     setSearchQuery('');
     setSelectedCompany('');
     setSelectedJobType('');
-    setSelectedSchool('');
+    setSelectedSchools([]);
   };
 
   const handleDownloadExcel = () => {
@@ -193,21 +243,48 @@ const JobOffers = () => {
   };
 
   // Unique companies for dropdown
-  const companies = [...new Set(offers.map(o => o.company_name))];
-  const jobTypes = [...new Set(offers.map(o => o.job_type))];
+  const companies = [...new Set(offers.map(o => o.company_name).filter(Boolean))];
+  const jobTypes = [...new Set(offers.map(o => o.job_type).filter(Boolean))];
+
+  // Search Priority Logic
+  const getMatchScore = (offer, query) => {
+    if (!query) return 0;
+    const q = query.toLowerCase();
+    
+    // Priority 1: Student Name
+    if ((offer.student_name?.toLowerCase() || '').includes(q)) return 4;
+    // Priority 2: Company Name
+    if ((offer.company_name?.toLowerCase() || '').includes(q)) return 3;
+    // Priority 3: USN
+    if ((offer.usn?.toLowerCase() || '').includes(q)) return 2;
+    // Priority 4: Other columns (Designation, Job Type, etc.)
+    if ((offer.designation?.toLowerCase() || '').includes(q)) return 1;
+    if ((offer.job_type?.toLowerCase() || '').includes(q)) return 1;
+    
+    return 0;
+  };
 
   const filteredOffers = offers.filter(offer => {
+    const query = searchQuery.toLowerCase();
     const matchesSearch = 
-      offer.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offer.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offer.designation?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offer.usn?.toLowerCase().includes(searchQuery.toLowerCase());
+      (offer.student_name?.toLowerCase() || '').includes(query) ||
+      (offer.company_name?.toLowerCase() || '').includes(query) ||
+      (offer.designation?.toLowerCase() || '').includes(query) ||
+      (offer.usn?.toLowerCase() || '').includes(query) ||
+      (offer.job_type?.toLowerCase() || '').includes(query);
     
     const matchesCompany = selectedCompany ? offer.company_name === selectedCompany : true;
     const matchesJobType = selectedJobType ? offer.job_type === selectedJobType : true;
-    const matchesSchool = selectedSchool ? offer.school === selectedSchool : true;
+    const matchesSchool = selectedSchools.length > 0 ? selectedSchools.some(selected => {
+      const offerSchool = offer.school ? offer.school.trim() : 'Other';
+      return offerSchool === selected;
+    }) : true;
     
     return matchesSearch && matchesCompany && matchesJobType && matchesSchool;
+  }).sort((a, b) => {
+    // Apply sort only if there is a search query
+    if (!searchQuery) return 0;
+    return getMatchScore(b, searchQuery) - getMatchScore(a, searchQuery);
   });
 
   return (
@@ -221,6 +298,18 @@ const JobOffers = () => {
               <Text color="gray.500" fontSize="sm">All job offers across students and companies</Text>
             </Box>
             <HStack spacing={3}>
+              <Button 
+                leftIcon={<BsLayoutThreeColumns />} 
+                bg="white" 
+                border="1px"
+                borderColor="gray.200"
+                color="gray.600"
+                _hover={{ bg: "gray.50", borderColor: "gray.300" }} 
+                onClick={() => setIsColumnModalOpen(true)}
+                size="sm"
+              >
+                Columns
+              </Button>
               <Button 
                 bg="#22c35e" 
                 color="white" 
@@ -263,157 +352,276 @@ const JobOffers = () => {
             </HStack>
           </Flex>
 
-          {/* Search */}
-          <Box bg="white" p={4} borderRadius="xl" shadow="sm" mb={6}>
-            <VStack spacing={4} align="stretch">
-              <InputGroup maxW="100%">
+          {/* Search & Filters Section */}
+          <Box bg="white" p={6} borderRadius="xl" shadow="sm" mb={6} border="1px solid" borderColor="gray.100">
+            <Flex gap={4} wrap="wrap" align="center">
+              {/* Search Bar */}
+              <InputGroup size="md" maxW="400px">
                 <InputLeftElement pointerEvents="none">
                   <SearchIcon color="gray.400" />
                 </InputLeftElement>
                 <Input 
-                  placeholder="Search by student, company, role, type" 
+                  placeholder="Search by Student Name, Company, USN..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   bg="gray.50"
-                  border="none"
-                  _focus={{ bg: "white", boxShadow: "outline" }}
+                  border="1px solid"
+                  borderColor="gray.200"
+                  _focus={{ bg: "white", borderColor: "blue.500", boxShadow: "0 0 0 1px #3182ce" }}
+                  _hover={{ borderColor: "gray.300" }}
                 />
               </InputGroup>
 
-              {/* Filters Row */}
-              <HStack spacing={4} wrap="wrap">
-                <Select 
-                  placeholder="Filter by Company" 
-                  maxW="200px" 
-                  bg="gray.50"
-                  border="none"
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
+              {/* Filters */}
+              <Select 
+                placeholder="All Companies" 
+                maxW="200px" 
+                bg="white"
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                _focus={{ borderColor: "blue.500" }}
+                size="md"
+              >
+                {companies.map(c => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select 
+                placeholder="All Job Types" 
+                maxW="180px" 
+                bg="white"
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                value={selectedJobType}
+                onChange={(e) => setSelectedJobType(e.target.value)}
+                _focus={{ borderColor: "blue.500" }}
+                size="md"
+              >
+                {jobTypes.map(j => <option key={j} value={j}>{j}</option>)}
+              </Select>
+              
+              <Spacer />
+              
+              {(searchQuery || selectedCompany || selectedJobType || selectedSchools.length > 0) && (
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  colorScheme="red" 
+                  onClick={handleClearFilters} 
+                  leftIcon={<span style={{fontSize: '16px'}}>×</span>}
                 >
-                  {companies.map(c => <option key={c} value={c}>{c}</option>)}
-                </Select>
-                <Select 
-                  placeholder="Filter by Job Type" 
-                  maxW="200px" 
-                  bg="gray.50"
-                  border="none"
-                  value={selectedJobType}
-                  onChange={(e) => setSelectedJobType(e.target.value)}
-                >
-                  {jobTypes.map(j => <option key={j} value={j}>{j}</option>)}
-                </Select>
-                <Button size="sm" variant="ghost" onClick={handleClearFilters} color="gray.500">
-                  Clear Filters
+                  Clear All Filters
                 </Button>
-              </HStack>
-            </VStack>
+              )}
+            </Flex>
           </Box>
 
           {/* School Stats Filters */}
           <Box mb={8}>
-            <Text fontWeight="bold" mb={3} color="gray.700" fontSize="sm">Filter by School</Text>
-            <Flex gap={4} wrap="wrap">
-              {schoolStats.map((stat) => (
-                <Card 
-                  key={stat.name} 
-                  bg="white" 
-                  boxShadow="sm" 
-                  borderRadius="xl" 
-                  cursor="pointer"
-                  border={selectedSchool === stat.name ? "2px solid #d1a85d" : "1px solid transparent"}
-                  onClick={() => setSelectedSchool(selectedSchool === stat.name ? '' : stat.name)}
-                  minW="100px"
-                  _hover={{ boxShadow: "md", transform: 'translateY(-2px)' }}
-                  transition="all 0.2s"
-                >
-                  <CardBody p={3} textAlign="center">
-                    <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={1}>{stat.name}</Text>
-                    <Text fontSize="lg" fontWeight="bold" color="blue.600">{stat.count}</Text>
-                  </CardBody>
-                </Card>
-              ))}
+            <Flex justify="space-between" align="center" mb={4}>
+               <Text fontWeight="700" color="gray.700" fontSize="lg">Filter by School</Text>
+               {selectedSchools.length > 0 && (
+                 <Badge colorScheme="blue" variant="solid" borderRadius="full" px={3} py={1}>
+                   Selected: {selectedSchools.join(', ')}
+                 </Badge>
+               )}
+            </Flex>
+            <Flex gap={4} wrap="wrap" pb={2}>
+              {schoolStats.map((stat) => {
+                const isSelected = selectedSchools.includes(stat.name);
+                return (
+                  <Card 
+                    key={stat.name} 
+                    bg={isSelected ? "blue.50" : "white"}
+                    boxShadow={isSelected ? "md" : "sm"}
+                    borderRadius="xl" 
+                    cursor="pointer"
+                    border="1px solid"
+                    borderColor={isSelected ? "blue.400" : "gray.100"}
+                    onClick={() => {
+                        setSelectedSchools(prev => 
+                            isSelected 
+                            ? prev.filter(s => s !== stat.name)
+                            : [...prev, stat.name]
+                        );
+                    }}
+                    minW="110px"
+                    _hover={{ transform: 'translateY(-2px)', boxShadow: "md", borderColor: "blue.200" }}
+                    transition="all 0.2s"
+                  >
+                    <CardBody p={4} textAlign="center">
+                      <Text fontSize="xs" fontWeight="bold" color={isSelected ? "blue.600" : "gray.500"} mb={1} textTransform="uppercase" letterSpacing="wide">
+                        {stat.name}
+                      </Text>
+                      <Text fontSize="2xl" fontWeight="800" color={isSelected ? "blue.700" : "gray.700"}>
+                        {stat.count}
+                      </Text>
+                    </CardBody>
+                  </Card>
+                );
+              })}
             </Flex>
           </Box>
 
           {/* Offers Table */}
-          <Box bg="white" borderRadius="xl" shadow="sm" overflowX="auto">
+          <Box bg="white" borderRadius="xl" shadow="sm" overflowX="auto" border="1px solid" borderColor="gray.100">
             <Table variant="simple">
-              <Thead bg="#172e36">
+              <Thead bg="gray.50" borderBottom="2px solid" borderColor="gray.100">
                 <Tr>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>USN</Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>Student</Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>Company</Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>Designation</Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>Job Type</Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>CTC (LPA) <span style={{fontSize: '10px'}}>⇅</span></Th>
-                  <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>Offer Letter Status</Th>
+                  {visibleColumns.includes('usn') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">USN</Th>}
+                  {visibleColumns.includes('student') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Student</Th>}
+                  {visibleColumns.includes('company') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Company</Th>}
+                  {visibleColumns.includes('designation') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Designation</Th>}
+                  {visibleColumns.includes('job_type') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Job Type</Th>}
+                  {visibleColumns.includes('ctc') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">CTC (LPA)</Th>}
+                  {visibleColumns.includes('status') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Status</Th>}
                 </Tr>
               </Thead>
               <Tbody>
                 {loading ? (
                   <Tr>
-                    <Td colSpan={7} textAlign="center" py={10}>
+                    <Td colSpan={visibleColumns.length} textAlign="center" py={10}>
                       <Spinner size="xl" color="blue.500" />
                       <Text mt={4} color="gray.500">Loading offers...</Text>
                     </Td>
                   </Tr>
-                ) : offers.length === 0 ? (
+                ) : filteredOffers.length === 0 ? (
                   <Tr>
-                    <Td colSpan={7} textAlign="center" py={10}>
+                    <Td colSpan={visibleColumns.length} textAlign="center" py={10}>
                       <Text color="gray.500">No offers found</Text>
                     </Td>
                   </Tr>
                 ) : (
-                  offers.map((offer) => (
+                  filteredOffers.map((offer) => (
                     <Tr key={offer.id} _hover={{ bg: "gray.50" }} transition="all 0.2s">
-                      <Td>
-                        <Badge colorScheme="purple" fontSize="xs" variant="subtle">{offer.usn}</Badge>
-                      </Td>
-                      <Td fontSize="sm" fontWeight="600" color="gray.700">
-                        {offer.student_name}
-                      </Td>
-                      <Td fontSize="sm" fontWeight="600" color="gray.700">
-                        {offer.company_id ? (
-                          <Text 
-                            as="span" 
-                            color="blue.600" 
-                            cursor="pointer" 
-                            _hover={{ textDecoration: 'underline' }}
-                            onClick={() => navigate(`/placement/company/${offer.company_id}`)}
+                      {visibleColumns.includes('usn') && (
+                        <Td>
+                          <Badge colorScheme="purple" fontSize="xs" variant="subtle">{offer.usn}</Badge>
+                        </Td>
+                      )}
+                      {visibleColumns.includes('student') && (
+                        <Td fontSize="sm" fontWeight="600" color="gray.700">
+                          {offer.student_name}
+                        </Td>
+                      )}
+                      {visibleColumns.includes('company') && (
+                        <Td fontSize="sm" fontWeight="600" color="gray.700">
+                          {offer.company_id ? (
+                            <Text 
+                              as="span" 
+                              color="blue.600" 
+                              cursor="pointer" 
+                              _hover={{ textDecoration: 'underline' }}
+                              onClick={() => navigate(`/placement/company/${offer.company_id}`)}
+                            >
+                              {offer.company_name}
+                            </Text>
+                          ) : (
+                            offer.company_name
+                          )}
+                        </Td>
+                      )}
+                      {visibleColumns.includes('designation') && (
+                        <Td fontSize="sm" color="gray.600">
+                          {offer.designation}
+                        </Td>
+                      )}
+                      {visibleColumns.includes('job_type') && <Td fontSize="sm" color="gray.600">{offer.job_type}</Td>}
+                      {visibleColumns.includes('ctc') && <Td fontSize="sm" color="gray.600">{offer.ctc || '-'}</Td>}
+                      {visibleColumns.includes('status') && (
+                        <Td>
+                          <Badge 
+                            colorScheme={
+                              ['Issued', 'Accepted'].includes(offer.offer_letter_status) ? 'green' :
+                              ['Yet to Receive', 'Pending'].includes(offer.offer_letter_status) ? 'orange' :
+                              offer.offer_letter_status === 'Rejected' ? 'red' : 'gray'
+                            }
+                            px={2}
+                            py={0.5}
+                            borderRadius="full"
+                            fontSize="xs"
+                            textTransform="capitalize"
                           >
-                            {offer.company_name}
-                          </Text>
-                        ) : (
-                          offer.company_name
-                        )}
-                      </Td>
-                      <Td fontSize="sm" color="gray.600">
-                        {offer.designation}
-                      </Td>
-                      <Td fontSize="sm" color="gray.600">{offer.job_type}</Td>
-                      <Td fontSize="sm" color="gray.600">{offer.ctc || '-'}</Td>
-                      <Td>
-                        <Badge 
-                          colorScheme={
-                            ['Issued', 'Accepted'].includes(offer.offer_letter_status) ? 'green' :
-                            ['Yet to Receive', 'Pending'].includes(offer.offer_letter_status) ? 'orange' :
-                            offer.offer_letter_status === 'Rejected' ? 'red' : 'gray'
-                          }
-                          px={2}
-                          py={0.5}
-                          borderRadius="full"
-                          fontSize="xs"
-                          textTransform="capitalize"
-                        >
-                          {offer.offer_letter_status}
-                        </Badge>
-                      </Td>
+                            {offer.offer_letter_status}
+                          </Badge>
+                        </Td>
+                      )}
                     </Tr>
                   ))
                 )}
               </Tbody>
             </Table>
           </Box>
+          
+          {/* Column Selector Modal */}
+          <Modal isOpen={isColumnModalOpen} onClose={() => setIsColumnModalOpen(false)} size="4xl" scrollBehavior="inside">
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>Select Columns</ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <VStack align="stretch" spacing={6}>
+                  {columnGroups.map(group => (
+                    <Box key={group.id} borderWidth="1px" borderRadius="lg" p={4} bg="gray.50">
+                      <Flex justify="space-between" align="center" mb={4}>
+                        <Heading size="sm" color="gray.700">{group.label}</Heading>
+                        <HStack spacing={2}>
+                          <Button
+                            size="xs"
+                            colorScheme="blue"
+                            variant="ghost"
+                            onClick={() => {
+                              const ids = group.columns.map(c => c.id);
+                              setVisibleColumns(prev => Array.from(new Set([...prev, ...ids])));
+                            }}
+                          >
+                            Select All
+                          </Button>
+                          <Button
+                            size="xs"
+                            colorScheme="red"
+                            variant="ghost"
+                            onClick={() => {
+                              const ids = group.columns.map(c => c.id);
+                              setVisibleColumns(prev => prev.filter(id => !ids.includes(id)));
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </HStack>
+                      </Flex>
+                      <Divider mb={4} borderColor="gray.300" />
+                      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={3}>
+                        {group.columns.map(col => (
+                          <Checkbox
+                            key={col.id}
+                            isChecked={visibleColumns.includes(col.id)}
+                            onChange={() => {
+                              setVisibleColumns(prev =>
+                                prev.includes(col.id)
+                                  ? prev.filter(id => id !== col.id)
+                                  : [...prev, col.id]
+                              );
+                            }}
+                          >
+                            <Text fontSize="sm">{col.label}</Text>
+                          </Checkbox>
+                        ))}
+                      </SimpleGrid>
+                    </Box>
+                  ))}
+                </VStack>
+              </ModalBody>
+              <ModalFooter>
+                <HStack spacing={4}>
+                  <Button variant="ghost" onClick={() => setIsColumnModalOpen(false)}>Close</Button>
+                </HStack>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+
           {/* Add Job Offer Modal */}
           <Modal isOpen={isOpen} onClose={onClose} size="xl">
             <ModalOverlay />
@@ -423,8 +631,8 @@ const JobOffers = () => {
               <ModalBody>
                 <VStack spacing={4}>
                   <FormControl isRequired>
-                    <FormLabel>Students</FormLabel>
-                    <Input name="student_name" placeholder="Type name, USN, school or program" value={newOffer.student_name} onChange={handleInputChange} />
+                    <FormLabel>Student USN</FormLabel>
+                    <Input name="usn" placeholder="Enter Student USN" value={newOffer.usn} onChange={handleInputChange} />
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel>Company</FormLabel>

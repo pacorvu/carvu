@@ -65,7 +65,10 @@ export const StudentProfileService = {
         headers: getHeaders(),
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to save section');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to save section (${res.status}): ${errorText}`);
+      }
       return await res.json();
     } catch (e) {
       console.error(`Error saving ${sectionName}:`, e);
