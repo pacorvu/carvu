@@ -43,7 +43,7 @@ import {
   TabPanel
 } from '@chakra-ui/react';
 // Force refresh
-import { SearchIcon, AddIcon, SettingsIcon, DownloadIcon, EditIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { SearchIcon, AddIcon, SettingsIcon, DownloadIcon, EditIcon, ChevronDownIcon, InfoIcon, CheckCircleIcon } from '@chakra-ui/icons';
 import { BsLayoutThreeColumns } from 'react-icons/bs';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -868,25 +868,57 @@ const Events = () => {
             <ModalBody pb={8} pt={6}>
               <VStack spacing={6} align="stretch">
                 
-                {/* Section 1: Core Company Info */}
+                {/* Section 1: Basic Information */}
                 <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
                   <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
                     <Box bg="blue.50" p={2} borderRadius="md">
-                       <SearchIcon color="blue.500" boxSize={4} />
+                       <InfoIcon color="blue.500" boxSize={4} />
                     </Box>
-                    <Heading size="md" color="gray.700">Company & Role Details</Heading>
+                    <Heading size="md" color="gray.700">Basic Information</Heading>
                   </HStack>
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <FormControl isRequired>
-                      <FormLabel fontWeight="medium" color="gray.600">Company</FormLabel>
+                      <FormLabel fontWeight="medium" color="gray.600">Company Name</FormLabel>
                       <Select name="company_id" value={newEvent.company_id} onChange={handleInputChange} placeholder="Select Company" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
                         {companyList.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
                       </Select>
                     </FormControl>
 
+                    <FormControl>
+                      <FormLabel fontWeight="medium" color="gray.600">Company Remarks</FormLabel>
+                      <Input name="company_remarks" value={newEvent.company_remarks} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel fontWeight="medium" color="gray.600">TPO Name</FormLabel>
+                      <Input name="tpo" value={newEvent.tpo} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
+                    </FormControl>
+
+                    <FormControl isRequired>
+                      <FormLabel fontWeight="medium" color="gray.600">Event Date</FormLabel>
+                      <Input 
+                        type="datetime-local" 
+                        name="event_datetime" 
+                        value={newEvent.event_datetime} 
+                        onChange={handleInputChange}
+                        bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} 
+                      />
+                    </FormControl>
+                  </SimpleGrid>
+                </Box>
+
+                {/* Section 2: Job Details */}
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="purple.50" p={2} borderRadius="md">
+                       <SearchIcon color="purple.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Job Details</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <FormControl isRequired>
                       <FormLabel fontWeight="medium" color="gray.600">Job Type</FormLabel>
-                      <Select name="job_type" value={newEvent.job_type} onChange={handleInputChange} placeholder="Select Job Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
+                      <Select name="job_type" value={newEvent.job_type} onChange={handleInputChange} placeholder="Select Job Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}>
                         <option value="Full Time">Full Time</option>
                         <option value="Internship">Internship</option>
                         <option value="Internship + FTE">Internship + FTE</option>
@@ -895,7 +927,7 @@ const Events = () => {
 
                     <FormControl>
                       <FormLabel fontWeight="medium" color="gray.600">Type of Hiring</FormLabel>
-                      <Select name="type_of_hiring" value={newEvent.type_of_hiring} onChange={handleInputChange} placeholder="Select Hiring Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
+                      <Select name="type_of_hiring" value={newEvent.type_of_hiring} onChange={handleInputChange} placeholder="Select Hiring Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}>
                          <option value="On Campus">On Campus</option>
                          <option value="Off Campus">Off Campus</option>
                          <option value="Pool Campus">Pool Campus</option>
@@ -905,105 +937,17 @@ const Events = () => {
 
                     <FormControl>
                       <FormLabel fontWeight="medium" color="gray.600">Job Location</FormLabel>
-                      <Input name="job_location" value={newEvent.job_location} onChange={handleInputChange} placeholder="City/State" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
+                      <Input name="job_location" value={newEvent.job_location} onChange={handleInputChange} placeholder="City/State" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                     </FormControl>
 
                     <FormControl gridColumn={{ md: "span 2" }}>
                       <FormLabel fontWeight="medium" color="gray.600">Job Description</FormLabel>
-                      <Textarea name="job_description" value={newEvent.job_description} onChange={handleInputChange} placeholder="Job description..." rows={3} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
+                      <Textarea name="job_description" value={newEvent.job_description} onChange={handleInputChange} placeholder="Job description..." rows={3} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                     </FormControl>
                   </SimpleGrid>
                 </Box>
 
-                {/* Section 2: Schedule & Logistics */}
-                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
-                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
-                    <Box bg="purple.50" p={2} borderRadius="md">
-                       <SettingsIcon color="purple.500" boxSize={4} />
-                    </Box>
-                    <Heading size="md" color="gray.700">Schedule & Logistics</Heading>
-                  </HStack>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <FormControl isRequired>
-                      <FormLabel fontWeight="medium" color="gray.600">Event Date</FormLabel>
-                      <Input 
-                        type="datetime-local" 
-                        name="event_datetime" 
-                        value={newEvent.event_datetime} 
-                        onChange={handleInputChange}
-                        bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} 
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel fontWeight="medium" color="gray.600">Last Date to Reg</FormLabel>
-                      <Input 
-                        type="date" 
-                        name="last_date_to_registration" 
-                        value={newEvent.last_date_to_registration} 
-                        onChange={handleInputChange} 
-                        bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}
-                      />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel fontWeight="medium" color="gray.600">Year (Batch)</FormLabel>
-                      <Input name="year" value={newEvent.year} onChange={handleInputChange} placeholder="2024" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel fontWeight="medium" color="gray.600">TPO Name</FormLabel>
-                      <Input name="tpo" value={newEvent.tpo} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel fontWeight="medium" color="gray.600">Number of Openings</FormLabel>
-                      <Input type="number" name="number_of_openings" value={newEvent.number_of_openings} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
-                    </FormControl>
-                    
-                    <FormControl>
-                       <FormLabel fontWeight="medium" color="gray.600">Placement Status</FormLabel>
-                       <Select name="placement_status" value={newEvent.placement_status} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}>
-                          <option value="Scheduled">Scheduled</option>
-                          <option value="Ongoing">Ongoing</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Cancelled">Cancelled</option>
-                       </Select>
-                    </FormControl>
-                  </SimpleGrid>
-                </Box>
-
-                {/* Section 3: Eligibility & Target Audience */}
-                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
-                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
-                    <Box bg="orange.50" p={2} borderRadius="md">
-                       <EditIcon color="orange.500" boxSize={4} />
-                    </Box>
-                    <Heading size="md" color="gray.700">Target Audience</Heading>
-                  </HStack>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <FormControl isRequired>
-                      <FormLabel fontWeight="medium" color="gray.600">School</FormLabel>
-                      <Select name="school_id" value={newEvent.school_id} onChange={handleInputChange} placeholder="Select School" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
-                         {schoolList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </Select>
-                    </FormControl>
-
-                    <FormControl>
-                       <FormLabel fontWeight="medium" color="gray.600">Program</FormLabel>
-                       <Select name="program_id" value={newEvent.program_id} onChange={handleInputChange} placeholder="Select Program" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
-                          {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                       </Select>
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel fontWeight="medium" color="gray.600">Min CGPA</FormLabel>
-                      <Input name="min_cgpa" value={newEvent.min_cgpa} onChange={handleInputChange} placeholder="e.g. 7.5" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }} />
-                    </FormControl>
-                  </SimpleGrid>
-                </Box>
-
-                {/* Section 4: Compensation */}
+                {/* Section 3: Compensation */}
                 <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
                   <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
                     <Box bg="green.50" p={2} borderRadius="md">
@@ -1059,15 +1003,62 @@ const Events = () => {
                       </FormControl>
                     </SimpleGrid>
                   </Box>
-
                 </Box>
 
-                {/* Section 5: Remarks */}
+                {/* Section 4: Status & Openings */}
                 <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
-                  <FormControl>
-                    <FormLabel fontWeight="medium" color="gray.600">Company Remarks</FormLabel>
-                    <Textarea name="company_remarks" value={newEvent.company_remarks} onChange={handleInputChange} rows={2} bg="gray.50" _focus={{ bg: 'white', borderColor: 'gray.500' }} />
-                  </FormControl>
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="orange.50" p={2} borderRadius="md">
+                       <SettingsIcon color="orange.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Status & Openings</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                    <FormControl>
+                      <FormLabel fontWeight="medium" color="gray.600">Number of Openings</FormLabel>
+                      <Input type="number" name="number_of_openings" value={newEvent.number_of_openings} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }} />
+                    </FormControl>
+                    
+                    <FormControl>
+                       <FormLabel fontWeight="medium" color="gray.600">Placement Status</FormLabel>
+                       <Select name="placement_status" value={newEvent.placement_status} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
+                          <option value="Scheduled">Scheduled</option>
+                          <option value="Ongoing">Ongoing</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Cancelled">Cancelled</option>
+                       </Select>
+                    </FormControl>
+                  </SimpleGrid>
+                </Box>
+
+                {/* Section 5: Eligibility */}
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="red.50" p={2} borderRadius="md">
+                       <CheckCircleIcon color="red.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Eligibility Criteria</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                    <FormControl isRequired>
+                      <FormLabel fontWeight="medium" color="gray.600">School</FormLabel>
+                      <Select name="school_id" value={newEvent.school_id} onChange={handleInputChange} placeholder="Select School" bg="gray.50" _focus={{ bg: 'white', borderColor: 'red.500' }}>
+                         {schoolList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl>
+                       <FormLabel fontWeight="medium" color="gray.600">Program</FormLabel>
+                       <Select name="program_id" value={newEvent.program_id} onChange={handleInputChange} placeholder="Select Program" bg="gray.50" _focus={{ bg: 'white', borderColor: 'red.500' }}>
+                          {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                       </Select>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel fontWeight="medium" color="gray.600">Min CGPA</FormLabel>
+                      <Input name="min_cgpa" value={newEvent.min_cgpa} onChange={handleInputChange} placeholder="e.g. 7.5" bg="gray.50" _focus={{ bg: 'white', borderColor: 'red.500' }} />
+                    </FormControl>
+                  </SimpleGrid>
                 </Box>
 
               </VStack>
