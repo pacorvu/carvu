@@ -33,6 +33,7 @@ import {
   SimpleGrid,
   Input
 } from '@chakra-ui/react';
+import { SearchIcon, SettingsIcon, EditIcon } from '@chakra-ui/icons';
 import { FiChevronLeft, FiChevronRight, FiPlus, FiTrash } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
@@ -85,8 +86,17 @@ const CalendarOfEvents = () => {
     type_of_hiring: '',
     number_of_openings: '',
     ctc: '',
+    ctc_min: '',
+    ctc_max: '',
+    ctc_variable: '',
+    ctc_stock: '',
+    ctc_avg: '',
+    ctc_final: '',
     min_cgpa: '',
     stipend: '',
+    stipend_min: '',
+    stipend_max: '',
+    stipend_avg: '',
     placement_status: 'Scheduled',
     company_remarks: ''
   });
@@ -293,8 +303,17 @@ const CalendarOfEvents = () => {
         type_of_hiring: '',
         number_of_openings: '',
         ctc: '',
+        ctc_min: '',
+        ctc_max: '',
+        ctc_variable: '',
+        ctc_stock: '',
+        ctc_avg: '',
+        ctc_final: '',
         min_cgpa: '',
         stipend: '',
+        stipend_min: '',
+        stipend_max: '',
+        stipend_avg: '',
         placement_status: 'Scheduled',
         company_remarks: ''
     });
@@ -327,18 +346,59 @@ const CalendarOfEvents = () => {
   const handlePlacementInputChange = (e) => {
     const { name, value } = e.target;
     setPlacementForm(prev => {
+      let updated = { ...prev, [name]: value };
+
       if (name === 'school_id') {
-        return { ...prev, [name]: value, program_id: '' };
+        updated.program_id = '';
       }
-      return { ...prev, [name]: value };
+
+      // Auto-calculate averages and totals
+      if (['ctc_min', 'ctc_max', 'ctc_variable', 'ctc_stock'].includes(name)) {
+          const min = parseFloat(name === 'ctc_min' ? value : prev.ctc_min) || 0;
+          const max = parseFloat(name === 'ctc_max' ? value : prev.ctc_max) || 0;
+          const variablePercent = parseFloat(name === 'ctc_variable' ? value : prev.ctc_variable) || 0;
+          const stock = parseFloat(name === 'ctc_stock' ? value : prev.ctc_stock) || 0;
+
+          if ((name === 'ctc_min' && value && prev.ctc_max) || (name === 'ctc_max' && value && prev.ctc_min)) {
+               updated.ctc_avg = ((min + max) / 2).toFixed(2);
+          } else if (!min || !max) {
+               updated.ctc_avg = '';
+          }
+
+          if ((name === 'ctc_max' ? value : prev.ctc_max) !== '' && ((name === 'ctc_variable' ? value : prev.ctc_variable) !== '' || (name === 'ctc_stock' ? value : prev.ctc_stock) !== '')) {
+            const variableAmount = (max * variablePercent) / 100;
+            updated.ctc_final = (max + variableAmount + stock).toFixed(2);
+          } else {
+            updated.ctc_final = '';
+          }
+      }
+
+      if (['stipend_min', 'stipend_max'].includes(name)) {
+          const min = parseFloat(name === 'stipend_min' ? value : prev.stipend_min) || 0;
+          const max = parseFloat(name === 'stipend_max' ? value : prev.stipend_max) || 0;
+
+          if ((name === 'stipend_min' && value && prev.stipend_max) || (name === 'stipend_max' && value && prev.stipend_min)) {
+               updated.stipend_avg = ((min + max) / 2).toFixed(2);
+          } else {
+               updated.stipend_avg = '';
+          }
+      }
+
+      return updated;
     });
   };
 
   const saveEvent = async () => {
     if (form.type === 'Placement') {
         // Handle Placement Drive Save
-        if (!placementForm.company_id || !placementForm.school_id || !placementForm.event_datetime) {
-            toast({ title: "Company, School and Date are required", status: "warning" });
+        const isBlank = (v) => v === null || v === undefined || String(v).trim() === '';
+        const missing = [];
+        if (isBlank(placementForm.company_id)) missing.push('Company');
+        if (isBlank(placementForm.school_id)) missing.push('School');
+        if (isBlank(placementForm.event_datetime)) missing.push('Event Date');
+
+        if (missing.length) {
+            toast({ title: `${missing.join(', ')} are required`, status: "warning" });
             return;
         }
 
@@ -349,8 +409,21 @@ const CalendarOfEvents = () => {
             school_id: parseInt(placementForm.school_id),
             company_id: parseInt(placementForm.company_id),
             year: parseInt(placementForm.year),
-            ctc_structure: { package: placementForm.ctc },
-            stipend_structure: { stipend: placementForm.stipend },
+            ctc_structure: { 
+                package: placementForm.ctc,
+                min: placementForm.ctc_min,
+                max: placementForm.ctc_max,
+                avg: placementForm.ctc_avg,
+                variable: placementForm.ctc_variable,
+                stock: placementForm.ctc_stock,
+                final: placementForm.ctc_final
+            },
+            stipend_structure: { 
+                stipend: placementForm.stipend,
+                min: placementForm.stipend_min,
+                max: placementForm.stipend_max,
+                avg: placementForm.stipend_avg
+            },
             eligibility_academics: { min_cgpa: placementForm.min_cgpa }
         };
 
@@ -518,107 +591,120 @@ const CalendarOfEvents = () => {
       </Box>
 
       {/* Add Event Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} size="3xl" scrollBehavior="inside">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Add Event for {formatDMY(selectedDate)}</ModalHeader>
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} size="4xl" scrollBehavior="inside">
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(5px)" />
+        <ModalContent bg="gray.50">
+          <ModalHeader borderBottomWidth="1px" borderColor="gray.200" bg="white" borderTopRadius="md">Add Event for {formatDMY(selectedDate)}</ModalHeader>
           <ModalCloseButton />
-          <ModalBody pb={6}>
+          <ModalBody pb={8} pt={6}>
             <VStack spacing={6} align="stretch">
-               <FormControl mb={4}>
-                  <FormLabel>Event Type</FormLabel>
-                  <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+               <FormControl mb={4} bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <FormLabel fontWeight="medium" color="gray.600">Event Type</FormLabel>
+                  <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
                       <option value="Placement">Placement Drive</option>
                       <option value="Alumni">Alumni Event</option>
                       <option value="Other">Other</option>
                   </Select>
                </FormControl>
 
-               <Divider />
-
                {form.type === 'Placement' ? (
                   <>
                   {/* Section 1: Core Company Info */}
-                  <Box>
-                    <Heading size="sm" mb={3} color="blue.600">Company & Role Details</Heading>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                    <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                      <Box bg="blue.50" p={2} borderRadius="md">
+                         <SearchIcon color="blue.500" boxSize={4} />
+                      </Box>
+                      <Heading size="md" color="gray.700">Company & Role Details</Heading>
+                    </HStack>
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                       <FormControl isRequired>
-                        <FormLabel>Company</FormLabel>
-                        <Select name="company_id" value={placementForm.company_id} onChange={handlePlacementInputChange} placeholder="Select Company">
+                        <FormLabel fontWeight="medium" color="gray.600">Company</FormLabel>
+                        <Select name="company_id" value={placementForm.company_id} onChange={handlePlacementInputChange} placeholder="Select Company" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
                           {companyList.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
                         </Select>
                       </FormControl>
 
                       <FormControl isRequired>
-                        <FormLabel>Job Type</FormLabel>
-                        <Input name="job_type" value={placementForm.job_type} onChange={handlePlacementInputChange} placeholder="e.g. Full Time" />
-                      </FormControl>
-
-                      <FormControl>
-                        <FormLabel>Type of Hiring</FormLabel>
-                        <Select name="type_of_hiring" value={placementForm.type_of_hiring} onChange={handlePlacementInputChange} placeholder="Select Type">
-                           <option value="Internship">Internship</option>
+                        <FormLabel fontWeight="medium" color="gray.600">Job Type</FormLabel>
+                        <Select name="job_type" value={placementForm.job_type} onChange={handlePlacementInputChange} placeholder="Select Job Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
                            <option value="Full Time">Full Time</option>
+                           <option value="Internship">Internship</option>
                            <option value="Internship + FTE">Internship + FTE</option>
                         </Select>
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>Job Location</FormLabel>
-                        <Input name="job_location" value={placementForm.job_location} onChange={handlePlacementInputChange} placeholder="City/State" />
+                        <FormLabel fontWeight="medium" color="gray.600">Type of Hiring</FormLabel>
+                        <Select name="type_of_hiring" value={placementForm.type_of_hiring} onChange={handlePlacementInputChange} placeholder="Select Hiring Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
+                           <option value="On Campus">On Campus</option>
+                           <option value="Off Campus">Off Campus</option>
+                           <option value="Pool Campus">Pool Campus</option>
+                           <option value="Virtual">Virtual</option>
+                        </Select>
+                      </FormControl>
+
+                      <FormControl>
+                        <FormLabel fontWeight="medium" color="gray.600">Job Location</FormLabel>
+                        <Input name="job_location" value={placementForm.job_location} onChange={handlePlacementInputChange} placeholder="City/State" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
                       </FormControl>
 
                       <FormControl gridColumn={{ md: "span 2" }}>
-                        <FormLabel>Job Description</FormLabel>
-                        <Textarea name="job_description" value={placementForm.job_description} onChange={handlePlacementInputChange} placeholder="Job description..." rows={3} />
+                        <FormLabel fontWeight="medium" color="gray.600">Job Description</FormLabel>
+                        <Textarea name="job_description" value={placementForm.job_description} onChange={handlePlacementInputChange} placeholder="Job description..." rows={3} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
                       </FormControl>
                     </SimpleGrid>
                   </Box>
 
-                  <Divider />
-
                   {/* Section 2: Schedule & Logistics */}
-                  <Box>
-                    <Heading size="sm" mb={3} color="blue.600">Schedule & Logistics</Heading>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                    <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                      <Box bg="purple.50" p={2} borderRadius="md">
+                         <SettingsIcon color="purple.500" boxSize={4} />
+                      </Box>
+                      <Heading size="md" color="gray.700">Schedule & Logistics</Heading>
+                    </HStack>
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                       <FormControl isRequired>
-                        <FormLabel>Event Date</FormLabel>
+                        <FormLabel fontWeight="medium" color="gray.600">Event Date</FormLabel>
                         <Input 
                           type="datetime-local" 
                           name="event_datetime" 
                           value={placementForm.event_datetime} 
                           onChange={handlePlacementInputChange} 
+                          bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}
                         />
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>Last Date to Reg</FormLabel>
+                        <FormLabel fontWeight="medium" color="gray.600">Last Date to Reg</FormLabel>
                         <Input 
                           type="date" 
                           name="last_date_to_registration" 
                           value={placementForm.last_date_to_registration} 
                           onChange={handlePlacementInputChange} 
+                          bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}
                         />
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>Year (Batch)</FormLabel>
-                        <Input name="year" value={placementForm.year} onChange={handlePlacementInputChange} placeholder="2024" />
+                        <FormLabel fontWeight="medium" color="gray.600">Year (Batch)</FormLabel>
+                        <Input name="year" value={placementForm.year} onChange={handlePlacementInputChange} placeholder="2024" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>TPO Name</FormLabel>
-                        <Input name="tpo" value={placementForm.tpo} onChange={handlePlacementInputChange} />
+                        <FormLabel fontWeight="medium" color="gray.600">TPO Name</FormLabel>
+                        <Input name="tpo" value={placementForm.tpo} onChange={handlePlacementInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>Number of Openings</FormLabel>
-                        <Input type="number" name="number_of_openings" value={placementForm.number_of_openings} onChange={handlePlacementInputChange} />
+                        <FormLabel fontWeight="medium" color="gray.600">Number of Openings</FormLabel>
+                        <Input type="number" name="number_of_openings" value={placementForm.number_of_openings} onChange={handlePlacementInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                       </FormControl>
                       
                       <FormControl>
-                         <FormLabel>Placement Status</FormLabel>
-                         <Select name="placement_status" value={placementForm.placement_status} onChange={handlePlacementInputChange}>
+                         <FormLabel fontWeight="medium" color="gray.600">Placement Status</FormLabel>
+                         <Select name="placement_status" value={placementForm.placement_status} onChange={handlePlacementInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}>
                             <option value="Scheduled">Scheduled</option>
                             <option value="Ongoing">Ongoing</option>
                             <option value="Completed">Completed</option>
@@ -628,58 +714,100 @@ const CalendarOfEvents = () => {
                     </SimpleGrid>
                   </Box>
 
-                  <Divider />
-
                   {/* Section 3: Eligibility & Target Audience */}
-                  <Box>
-                    <Heading size="sm" mb={3} color="blue.600">Target Audience</Heading>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                  <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                    <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                      <Box bg="orange.50" p={2} borderRadius="md">
+                         <EditIcon color="orange.500" boxSize={4} />
+                      </Box>
+                      <Heading size="md" color="gray.700">Target Audience</Heading>
+                    </HStack>
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                       <FormControl isRequired>
-                        <FormLabel>School</FormLabel>
-                        <Select name="school_id" value={placementForm.school_id} onChange={handlePlacementInputChange} placeholder="Select School">
+                        <FormLabel fontWeight="medium" color="gray.600">School</FormLabel>
+                        <Select name="school_id" value={placementForm.school_id} onChange={handlePlacementInputChange} placeholder="Select School" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
                            {schoolList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </Select>
                       </FormControl>
 
                       <FormControl>
-                         <FormLabel>Program</FormLabel>
-                         <Select name="program_id" value={placementForm.program_id} onChange={handlePlacementInputChange} placeholder="Select Program">
+                         <FormLabel fontWeight="medium" color="gray.600">Program</FormLabel>
+                         <Select name="program_id" value={placementForm.program_id} onChange={handlePlacementInputChange} placeholder="Select Program" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
                             {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                          </Select>
                       </FormControl>
 
                       <FormControl>
-                        <FormLabel>Min CGPA</FormLabel>
-                        <Input name="min_cgpa" value={placementForm.min_cgpa} onChange={handlePlacementInputChange} placeholder="e.g. 7.5" />
+                        <FormLabel fontWeight="medium" color="gray.600">Min CGPA</FormLabel>
+                        <Input name="min_cgpa" value={placementForm.min_cgpa} onChange={handlePlacementInputChange} placeholder="e.g. 7.5" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }} />
                       </FormControl>
                     </SimpleGrid>
                   </Box>
-
-                  <Divider />
 
                   {/* Section 4: Compensation */}
-                  <Box>
-                    <Heading size="sm" mb={3} color="blue.600">Compensation</Heading>
-                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                      <FormControl>
-                        <FormLabel>Package (CTC)</FormLabel>
-                        <Input name="ctc" value={placementForm.ctc} onChange={handlePlacementInputChange} placeholder="e.g. 10 LPA" />
-                      </FormControl>
+                  <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                    <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                      <Box bg="green.50" p={2} borderRadius="md">
+                         <Text fontSize="lg" fontWeight="bold" color="green.600">₹</Text>
+                      </Box>
+                      <Heading size="md" color="gray.700">Compensation Details</Heading>
+                    </HStack>
+                    
+                    <Box bg="gray.50" p={4} borderRadius="md" mb={6} borderWidth="1px" borderColor="gray.200">
+                      <Text fontWeight="bold" fontSize="sm" mb={3} color="green.700" textTransform="uppercase" letterSpacing="wide">CTC Structure (LPA)</Text>
+                      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Minimum</FormLabel>
+                          <Input type="number" name="ctc_min" value={placementForm.ctc_min} onChange={handlePlacementInputChange} placeholder="Min" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Maximum</FormLabel>
+                          <Input type="number" name="ctc_max" value={placementForm.ctc_max} onChange={handlePlacementInputChange} placeholder="Max" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Average (Calc)</FormLabel>
+                          <Input type="number" name="ctc_avg" value={placementForm.ctc_avg} isReadOnly bg="gray.100" color="gray.600" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Variable Pay (%)</FormLabel>
+                          <Input type="number" name="ctc_variable" value={placementForm.ctc_variable} onChange={handlePlacementInputChange} placeholder="e.g. 10" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Stock Options</FormLabel>
+                          <Input type="number" name="ctc_stock" value={placementForm.ctc_stock} onChange={handlePlacementInputChange} placeholder="Stock" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="green.600">Final CTC (Calc)</FormLabel>
+                          <Input type="number" name="ctc_final" value={placementForm.ctc_final} isReadOnly bg="green.50" color="green.700" fontWeight="bold" borderColor="green.200" />
+                        </FormControl>
+                      </SimpleGrid>
+                    </Box>
 
-                      <FormControl>
-                        <FormLabel>Stipend</FormLabel>
-                        <Input name="stipend" value={placementForm.stipend} onChange={handlePlacementInputChange} placeholder="e.g. 25000/month" />
-                      </FormControl>
-                    </SimpleGrid>
+                    <Box bg="gray.50" p={4} borderRadius="md" mb={6} borderWidth="1px" borderColor="gray.200">
+                      <Text fontWeight="bold" fontSize="sm" mb={3} color="blue.700" textTransform="uppercase" letterSpacing="wide">Stipend Structure (Monthly)</Text>
+                      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Minimum</FormLabel>
+                          <Input type="number" name="stipend_min" value={placementForm.stipend_min} onChange={handlePlacementInputChange} placeholder="Min" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Maximum</FormLabel>
+                          <Input type="number" name="stipend_max" value={placementForm.stipend_max} onChange={handlePlacementInputChange} placeholder="Max" bg="white" />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Average (Calc)</FormLabel>
+                          <Input type="number" name="stipend_avg" value={placementForm.stipend_avg} isReadOnly bg="gray.100" color="gray.600" />
+                        </FormControl>
+                      </SimpleGrid>
+                    </Box>
+
                   </Box>
 
-                  <Divider />
-
                   {/* Section 5: Remarks */}
-                  <Box>
+                  <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
                     <FormControl>
-                      <FormLabel>Company Remarks</FormLabel>
-                      <Textarea name="company_remarks" value={placementForm.company_remarks} onChange={handlePlacementInputChange} rows={2} />
+                      <FormLabel fontWeight="medium" color="gray.600">Company Remarks</FormLabel>
+                      <Textarea name="company_remarks" value={placementForm.company_remarks} onChange={handlePlacementInputChange} rows={2} bg="gray.50" _focus={{ bg: 'white', borderColor: 'gray.500' }} />
                     </FormControl>
                   </Box>
                   </>

@@ -60,79 +60,70 @@ const Events = () => {
 
   // Column Visibility State
   const baseColumns = [
-    { id: 'company', label: 'Company' },
-    { id: 'registrations', label: 'Registrations' },
-    { id: 'jobProfile', label: 'Job Profile' },
-    { id: 'date', label: 'Date' },
-    { id: 'eligibility', label: 'Eligibility' },
-    { id: 'package', label: 'Package (CTC)' },
-    { id: 'status', label: 'Status' },
+    { id: 'company_name', label: 'Company Name' },
+    { id: 'job_type', label: 'Job Type' },
+    { id: 'event_datetime', label: 'Event Datetime' },
+    { id: 'school', label: 'School' },
+    { id: 'ctc_structure', label: 'CTC Structure' },
+    { id: 'company_remarks', label: 'Company Remarks' },
     { id: 'actions', label: 'Actions' },
   ];
 
   const columnGroups = [
     {
-      id: 'core_details',
-      label: 'Core Details',
+      id: 'company_job_info',
+      label: 'Company & Job Info',
       columns: [
-        { id: 'id', label: 'ID' },
-        { id: 'company', label: 'Company Name' },
-        { id: 'jobProfile', label: 'Job Profile' },
+        { id: 'company_name', label: 'Company Name' },
         { id: 'job_type', label: 'Job Type' },
+        { id: 'type_of_hiring', label: 'Type of Hiring' },
         { id: 'job_location', label: 'Job Location' },
         { id: 'job_description', label: 'Job Description' },
-        { id: 'type_of_hiring', label: 'Type of Hiring' },
+        { id: 'number_of_openings', label: 'Number of Openings' },
+        { id: 'company_remarks', label: 'Company Remarks' },
         { id: 'actions', label: 'Actions' },
       ],
     },
     {
-      id: 'schedule_status',
-      label: 'Schedule & Status',
+      id: 'target_audience',
+      label: 'Target Audience',
       columns: [
-        { id: 'date', label: 'Date' },
+        { id: 'school', label: 'School' },
+        { id: 'program', label: 'Program' },
+        { id: 'specialization', label: 'Specialization' },
+        { id: 'year', label: 'Year' },
+        { id: 'tpo', label: 'TPO' },
+        { id: 'eligibility_academics', label: 'Eligibility Academics (JSON)' },
+      ],
+    },
+    {
+      id: 'compensation',
+      label: 'Compensation',
+      columns: [
+        { id: 'ctc_structure', label: 'CTC Structure (JSON)' },
+        { id: 'stipend_structure', label: 'Stipend Structure (JSON)' },
+      ],
+    },
+    {
+      id: 'timeline',
+      label: 'Timeline & Schedule',
+      columns: [
         { id: 'event_datetime', label: 'Event Datetime' },
         { id: 'last_date_to_registration', label: 'Last Date to Reg' },
         { id: 'onboarded_date', label: 'Onboarded Date' },
-        { id: 'status', label: 'Status' },
-        { id: 'placement_status', label: 'Placement Status (Raw)' },
-        { id: 'offer_letter_status', label: 'Offer Letter Status' },
         { id: 'created_at', label: 'Created At' },
         { id: 'updated_at', label: 'Updated At' },
       ],
     },
     {
-      id: 'compensation_eligibility',
-      label: 'Compensation & Eligibility',
+      id: 'status_stats',
+      label: 'Status & Statistics',
       columns: [
-        { id: 'package', label: 'Package (CTC)' },
-        { id: 'ctc_structure', label: 'CTC Structure (JSON)' },
-        { id: 'stipend_structure', label: 'Stipend Structure (JSON)' },
-        { id: 'eligibility', label: 'Eligibility' },
-        { id: 'eligibility_academics', label: 'Eligibility Academics (JSON)' },
-        { id: 'year', label: 'Year' },
-      ],
-    },
-    {
-      id: 'registration_stats',
-      label: 'Registration & Stats',
-      columns: [
-        { id: 'registrations', label: 'Registrations' },
-        { id: 'number_of_registrations', label: 'No. Registrations (Raw)' },
-        { id: 'no_shortlisted', label: 'No. Shortlisted' },
-        { id: 'number_of_openings', label: 'Number of Openings' },
-      ],
-    },
-    {
-      id: 'metadata',
-      label: 'Metadata & Advanced',
-      columns: [
-        { id: 'company_id', label: 'Company ID' },
-        { id: 'institution_id', label: 'Institution ID' },
-        { id: 'school_id', label: 'School ID' },
-        { id: 'program_id', label: 'Program ID' },
-        { id: 'specialization_id', label: 'Specialization ID' },
-        { id: 'tpo', label: 'TPO' },
-        { id: 'company_remarks', label: 'Company Remarks' },
+        { id: 'id', label: 'ID' },
+        { id: 'placement_status', label: 'Placement Status' },
+        { id: 'number_of_registrations', label: 'Number of Registrations' },
+        { id: 'no_shortlisted', label: 'No Shortlisted' },
+        { id: 'offer_letter_status', label: 'Offer Letter Status' },
       ],
     },
   ];
@@ -194,8 +185,17 @@ const Events = () => {
     type_of_hiring: '',
     number_of_openings: '',
     ctc: '',
+    ctc_min: '',
+    ctc_max: '',
+    ctc_variable: '',
+    ctc_stock: '',
+    ctc_avg: '',
+    ctc_final: '',
     min_cgpa: '',
     stipend: '',
+    stipend_min: '',
+    stipend_max: '',
+    stipend_avg: '',
     placement_status: 'Scheduled',
     company_remarks: ''
   };
@@ -260,15 +260,52 @@ const Events = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewEvent(prev => {
+      let updated = { ...prev, [name]: value };
+
       if (name === 'school_id') {
-        return { ...prev, [name]: value, program_id: '' };
+        updated.program_id = '';
       }
-      return { ...prev, [name]: value };
+
+      if (['ctc_min', 'ctc_max', 'ctc_variable', 'ctc_stock'].includes(name)) {
+        const min = parseFloat(updated.ctc_min) || 0;
+        const max = parseFloat(updated.ctc_max) || 0;
+        const variablePercent = parseFloat(updated.ctc_variable) || 0;
+        const stock = parseFloat(updated.ctc_stock) || 0;
+
+        if (updated.ctc_min !== '' && updated.ctc_max !== '') {
+          updated.ctc_avg = ((min + max) / 2).toFixed(2);
+        } else {
+          updated.ctc_avg = '';
+        }
+
+        if (updated.ctc_max !== '' && (updated.ctc_variable !== '' || updated.ctc_stock !== '')) {
+          const variableAmount = (max * variablePercent) / 100;
+          updated.ctc_final = (max + variableAmount + stock).toFixed(2);
+        } else {
+          updated.ctc_final = '';
+        }
+      }
+
+      if (['stipend_min', 'stipend_max'].includes(name)) {
+        const min = parseFloat(updated.stipend_min) || 0;
+        const max = parseFloat(updated.stipend_max) || 0;
+
+        if (updated.stipend_min !== '' && updated.stipend_max !== '') {
+          updated.stipend_avg = ((min + max) / 2).toFixed(2);
+        } else {
+          updated.stipend_avg = '';
+        }
+      }
+
+      return updated;
     });
   };
 
   const handleEditClick = (drive) => {
     setSelectedEventId(drive.id);
+    const ctcStruct = drive.ctc_structure || {};
+    const stipendStruct = drive.stipend_structure || {};
+
     setNewEvent({
       company_id: drive.company_id || '',
       tpo: drive.tpo || '',
@@ -282,18 +319,33 @@ const Events = () => {
       last_date_to_registration: drive.last_date_to_registration ? new Date(drive.last_date_to_registration).toISOString().slice(0, 10) : '',
       type_of_hiring: drive.type_of_hiring || '',
       number_of_openings: drive.number_of_openings || '',
-      ctc: drive.ctc || (drive.ctc_structure && (drive.ctc_structure.package || drive.ctc_structure.total)) || '',
+      ctc: drive.ctc || ctcStruct.package || '',
       min_cgpa: (drive.eligibility_academics && drive.eligibility_academics.min_cgpa) || '',
-      stipend: (drive.stipend_structure && drive.stipend_structure.stipend) || '',
+      stipend: stipendStruct.stipend || '',
       placement_status: drive.placement_status || 'Scheduled',
-      company_remarks: drive.company_remarks || ''
+      company_remarks: drive.company_remarks || '',
+      ctc_min: ctcStruct.min || '',
+      ctc_max: ctcStruct.max || '',
+      ctc_avg: ctcStruct.avg || '',
+      ctc_variable: ctcStruct.variable || '',
+      ctc_stock: ctcStruct.stock || '',
+      ctc_final: ctcStruct.final || '',
+      stipend_min: stipendStruct.min || '',
+      stipend_max: stipendStruct.max || '',
+      stipend_avg: stipendStruct.avg || ''
     });
     onOpen();
   };
 
   const handleSaveEvent = async () => {
-    if (!newEvent.company_id || !newEvent.school_id || !newEvent.event_datetime) {
-      toast({ title: "Company, School and Date are required", status: "warning" });
+    const isBlank = (v) => v === null || v === undefined || String(v).trim() === '';
+    const missing = [];
+    if (isBlank(newEvent.company_id)) missing.push('Company');
+    if (isBlank(newEvent.school_id)) missing.push('School');
+    if (isBlank(newEvent.event_datetime)) missing.push('Event Date');
+
+    if (missing.length) {
+      toast({ title: `${missing.join(', ')} are required`, status: "warning" });
       return;
     }
 
@@ -305,9 +357,22 @@ const Events = () => {
       school_id: parseInt(newEvent.school_id),
       company_id: parseInt(newEvent.company_id),
       year: parseInt(newEvent.year),
-      ctc_structure: { package: newEvent.ctc },
+      ctc_structure: { 
+        package: newEvent.ctc,
+        min: newEvent.ctc_min,
+        max: newEvent.ctc_max,
+        avg: newEvent.ctc_avg,
+        variable: newEvent.ctc_variable,
+        stock: newEvent.ctc_stock,
+        final: newEvent.ctc_final
+      },
       eligibility_academics: { min_cgpa: newEvent.min_cgpa },
-      stipend_structure: { stipend: newEvent.stipend }
+      stipend_structure: { 
+        stipend: newEvent.stipend,
+        min: newEvent.stipend_min,
+        max: newEvent.stipend_max,
+        avg: newEvent.stipend_avg
+      }
     };
 
     try {
@@ -633,38 +698,30 @@ const Events = () => {
                 <Thead bg="gray.50">
                   <Tr>
                     {visibleColumns.includes('id') && <Th>ID</Th>}
-                    {visibleColumns.includes('company') && <Th>Company Name</Th>}
-                    {visibleColumns.includes('company_id') && <Th>Company ID</Th>}
-                    {visibleColumns.includes('registrations') && <Th>Registrations</Th>}
-                    {visibleColumns.includes('number_of_registrations') && <Th>No. Registrations (Raw)</Th>}
-                    {visibleColumns.includes('jobProfile') && <Th>Job Profile</Th>}
+                    {visibleColumns.includes('company_name') && <Th>Company Name</Th>}
                     {visibleColumns.includes('job_type') && <Th>Job Type</Th>}
-                    {visibleColumns.includes('date') && <Th>Date</Th>}
+                    {visibleColumns.includes('type_of_hiring') && <Th>Type of Hiring</Th>}
                     {visibleColumns.includes('event_datetime') && <Th>Event Datetime</Th>}
-                    {visibleColumns.includes('eligibility') && <Th>Eligibility</Th>}
-                    {visibleColumns.includes('package') && <Th>Package (CTC)</Th>}
-                    {visibleColumns.includes('status') && <Th>Status</Th>}
-                    {visibleColumns.includes('placement_status') && <Th>Placement Status (Raw)</Th>}
+                    {visibleColumns.includes('last_date_to_registration') && <Th>Last Date to Reg</Th>}
+                    {visibleColumns.includes('school') && <Th>School</Th>}
+                    {visibleColumns.includes('ctc_structure') && <Th>CTC Structure (JSON)</Th>}
+                    {visibleColumns.includes('stipend_structure') && <Th>Stipend Structure (JSON)</Th>}
                     {visibleColumns.includes('company_remarks') && <Th>Company Remarks</Th>}
                     {visibleColumns.includes('tpo') && <Th>TPO</Th>}
                     {visibleColumns.includes('year') && <Th>Year</Th>}
                     {visibleColumns.includes('eligibility_academics') && <Th>Eligibility Academics (JSON)</Th>}
-                    {visibleColumns.includes('type_of_hiring') && <Th>Type of Hiring</Th>}
-                    {visibleColumns.includes('ctc_structure') && <Th>CTC Structure (JSON)</Th>}
                     {visibleColumns.includes('job_location') && <Th>Job Location</Th>}
                     {visibleColumns.includes('onboarded_date') && <Th>Onboarded Date</Th>}
-                    {visibleColumns.includes('last_date_to_registration') && <Th>Last Date to Reg</Th>}
-                    {visibleColumns.includes('no_shortlisted') && <Th>No. Shortlisted</Th>}
+                    {visibleColumns.includes('no_shortlisted') && <Th>No Shortlisted</Th>}
                     {visibleColumns.includes('offer_letter_status') && <Th>Offer Letter Status</Th>}
+                    {visibleColumns.includes('program') && <Th>Program</Th>}
+                    {visibleColumns.includes('specialization') && <Th>Specialization</Th>}
+                    {visibleColumns.includes('number_of_openings') && <Th>Number of Openings</Th>}
+                    {visibleColumns.includes('number_of_registrations') && <Th>Number of Registrations</Th>}
+                    {visibleColumns.includes('placement_status') && <Th>Placement Status</Th>}
+                    {visibleColumns.includes('job_description') && <Th>Job Description</Th>}
                     {visibleColumns.includes('created_at') && <Th>Created At</Th>}
                     {visibleColumns.includes('updated_at') && <Th>Updated At</Th>}
-                    {visibleColumns.includes('institution_id') && <Th>Institution ID</Th>}
-                    {visibleColumns.includes('job_description') && <Th>Job Description</Th>}
-                    {visibleColumns.includes('stipend_structure') && <Th>Stipend Structure (JSON)</Th>}
-                    {visibleColumns.includes('school_id') && <Th>School ID</Th>}
-                    {visibleColumns.includes('program_id') && <Th>Program ID</Th>}
-                    {visibleColumns.includes('specialization_id') && <Th>Specialization ID</Th>}
-                    {visibleColumns.includes('number_of_openings') && <Th>Number of Openings</Th>}
                     {visibleColumns.includes('actions') && <Th>Actions</Th>}
                   </Tr>
                 </Thead>
@@ -685,58 +742,41 @@ const Events = () => {
                           transition="background-color 0.3s"
                         >
                           {visibleColumns.includes('id') && <Td>{drive.id}</Td>}
-                          {visibleColumns.includes('company') && <Td fontWeight="medium" color="#2c5282">{drive.company_name}</Td>}
-                          {visibleColumns.includes('company_id') && <Td>{drive.company_id}</Td>}
-                          {visibleColumns.includes('registrations') && (
-                            <Td>
-                              <Button 
-                                size="xs" 
-                                colorScheme="blue" 
-                                onClick={() => handleManageClick(drive)}
-                              >
-                                View ({drive.number_of_registrations || 0})
-                              </Button>
-                            </Td>
-                          )}
-                          {visibleColumns.includes('number_of_registrations') && <Td>{drive.number_of_registrations}</Td>}
-                          {visibleColumns.includes('jobProfile') && <Td>{drive.job_type}</Td>}
-                          {visibleColumns.includes('job_type') && <Td>{drive.job_type}</Td>}
-                          {visibleColumns.includes('date') && <Td>{new Date(drive.event_datetime).toLocaleDateString()}</Td>}
-                          {visibleColumns.includes('event_datetime') && <Td>{drive.event_datetime}</Td>}
-                          {visibleColumns.includes('eligibility') && <Td>{drive.school}</Td>}
-                          {visibleColumns.includes('package') && <Td>{drive.ctc || drive.ctc_structure?.total || "N/A"}</Td>}
-                          {visibleColumns.includes('status') && (
-                            <Td>
-                              <Badge colorScheme={drive.placement_status === 'Completed' ? 'green' : drive.placement_status === 'Cancelled' ? 'red' : 'blue'}>
-                                {drive.placement_status || 'Scheduled'}
-                              </Badge>
-                            </Td>
-                          )}
-                          {visibleColumns.includes('placement_status') && <Td>{drive.placement_status}</Td>}
+                          {visibleColumns.includes('company_name') && <Td fontWeight="medium" color="#2c5282">{drive.company_name}</Td>}
+                          {visibleColumns.includes('job_type') && <Td>{drive.job_type || '-'}</Td>}
+                          {visibleColumns.includes('type_of_hiring') && <Td>{drive.type_of_hiring || '-'}</Td>}
+                          {visibleColumns.includes('event_datetime') && <Td>{drive.event_datetime ? new Date(drive.event_datetime).toLocaleString() : '-'}</Td>}
+                          {visibleColumns.includes('last_date_to_registration') && <Td>{drive.last_date_to_registration || '-'}</Td>}
+                          {visibleColumns.includes('school') && <Td>{drive.school}</Td>}
+                          {visibleColumns.includes('ctc_structure') && <Td><pre style={{fontSize: '10px'}}>{JSON.stringify(drive.ctc_structure, null, 2)}</pre></Td>}
+                          {visibleColumns.includes('stipend_structure') && <Td><pre style={{fontSize: '10px'}}>{JSON.stringify(drive.stipend_structure, null, 2)}</pre></Td>}
                           {visibleColumns.includes('company_remarks') && <Td>{drive.company_remarks}</Td>}
                           {visibleColumns.includes('tpo') && <Td>{drive.tpo}</Td>}
                           {visibleColumns.includes('year') && <Td>{drive.year}</Td>}
                           {visibleColumns.includes('eligibility_academics') && <Td><pre style={{fontSize: '10px'}}>{JSON.stringify(drive.eligibility_academics, null, 2)}</pre></Td>}
-                          {visibleColumns.includes('type_of_hiring') && <Td>{drive.type_of_hiring}</Td>}
-                          {visibleColumns.includes('ctc_structure') && <Td><pre style={{fontSize: '10px'}}>{JSON.stringify(drive.ctc_structure, null, 2)}</pre></Td>}
                           {visibleColumns.includes('job_location') && <Td>{drive.job_location}</Td>}
-                          {visibleColumns.includes('onboarded_date') && <Td>{drive.onboarded_date}</Td>}
-                          {visibleColumns.includes('last_date_to_registration') && <Td>{drive.last_date_to_registration}</Td>}
+                          {visibleColumns.includes('onboarded_date') && <Td>{drive.onboarded_date || '-'}</Td>}
                           {visibleColumns.includes('no_shortlisted') && <Td>{drive.no_shortlisted}</Td>}
                           {visibleColumns.includes('offer_letter_status') && <Td>{drive.offer_letter_status}</Td>}
+                          {visibleColumns.includes('program') && <Td>{drive.program || '-'}</Td>}
+                          {visibleColumns.includes('specialization') && <Td>{drive.specialization || '-'}</Td>}
+                          {visibleColumns.includes('number_of_openings') && <Td>{drive.number_of_openings}</Td>}
+                          {visibleColumns.includes('number_of_registrations') && <Td>{drive.number_of_registrations}</Td>}
+                          {visibleColumns.includes('placement_status') && <Td>{drive.placement_status}</Td>}
+                          {visibleColumns.includes('job_description') && <Td>{drive.job_description && drive.job_description.length > 50 ? drive.job_description.substring(0, 50) + '...' : drive.job_description}</Td>}
                           {visibleColumns.includes('created_at') && <Td>{drive.created_at}</Td>}
                           {visibleColumns.includes('updated_at') && <Td>{drive.updated_at}</Td>}
-                          {visibleColumns.includes('institution_id') && <Td>{drive.institution_id}</Td>}
-                          {visibleColumns.includes('job_description') && <Td>{drive.job_description && drive.job_description.length > 50 ? drive.job_description.substring(0, 50) + '...' : drive.job_description}</Td>}
-                          {visibleColumns.includes('stipend_structure') && <Td><pre style={{fontSize: '10px'}}>{JSON.stringify(drive.stipend_structure, null, 2)}</pre></Td>}
-                          {visibleColumns.includes('school_id') && <Td>{drive.school_id}</Td>}
-                          {visibleColumns.includes('program_id') && <Td>{drive.program_id}</Td>}
-                          {visibleColumns.includes('specialization_id') && <Td>{drive.specialization_id}</Td>}
-                          {visibleColumns.includes('number_of_openings') && <Td>{drive.number_of_openings}</Td>}
                           {visibleColumns.includes('actions') && (
                             <Td>
                               <HStack spacing={2}>
                                 <Button size="xs" leftIcon={<EditIcon />} onClick={() => handleEditClick(drive)}>Edit</Button>
+                                <Button 
+                                    size="xs" 
+                                    colorScheme="blue" 
+                                    onClick={() => handleManageClick(drive)}
+                                >
+                                    View Registrations ({drive.number_of_registrations || 0})
+                                </Button>
                               </HStack>
                             </Td>
                           )}
@@ -818,95 +858,112 @@ const Events = () => {
         </Container>
 
         {/* Add/Edit Drive Modal */}
-        <Modal isOpen={isOpen} onClose={handleModalClose} size="3xl" scrollBehavior="inside">
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>{selectedEventId ? 'Edit Placement Drive' : 'Add New Placement Drive'}</ModalHeader>
+        <Modal isOpen={isOpen} onClose={handleModalClose} size="4xl" scrollBehavior="inside">
+          <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(5px)" />
+          <ModalContent bg="gray.50">
+            <ModalHeader borderBottomWidth="1px" borderColor="gray.200" bg="white" borderTopRadius="md">
+              {selectedEventId ? 'Edit Placement Drive' : 'Add New Placement Drive'}
+            </ModalHeader>
             <ModalCloseButton />
-            <ModalBody pb={6}>
+            <ModalBody pb={8} pt={6}>
               <VStack spacing={6} align="stretch">
                 
                 {/* Section 1: Core Company Info */}
-                <Box>
-                  <Heading size="sm" mb={3} color="blue.600">Company & Role Details</Heading>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="blue.50" p={2} borderRadius="md">
+                       <SearchIcon color="blue.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Company & Role Details</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <FormControl isRequired>
-                      <FormLabel>Company</FormLabel>
-                      <Select name="company_id" value={newEvent.company_id} onChange={handleInputChange} placeholder="Select Company">
+                      <FormLabel fontWeight="medium" color="gray.600">Company</FormLabel>
+                      <Select name="company_id" value={newEvent.company_id} onChange={handleInputChange} placeholder="Select Company" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
                         {companyList.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
                       </Select>
                     </FormControl>
 
                     <FormControl isRequired>
-                      <FormLabel>Job Type</FormLabel>
-                      <Input name="job_type" value={newEvent.job_type} onChange={handleInputChange} placeholder="e.g. Full Time" />
-                    </FormControl>
-
-                    <FormControl>
-                      <FormLabel>Type of Hiring</FormLabel>
-                      <Select name="type_of_hiring" value={newEvent.type_of_hiring} onChange={handleInputChange} placeholder="Select Type">
-                         <option value="Internship">Internship</option>
-                         <option value="Full Time">Full Time</option>
-                         <option value="Internship + FTE">Internship + FTE</option>
+                      <FormLabel fontWeight="medium" color="gray.600">Job Type</FormLabel>
+                      <Select name="job_type" value={newEvent.job_type} onChange={handleInputChange} placeholder="Select Job Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
+                        <option value="Full Time">Full Time</option>
+                        <option value="Internship">Internship</option>
+                        <option value="Internship + FTE">Internship + FTE</option>
                       </Select>
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Job Location</FormLabel>
-                      <Input name="job_location" value={newEvent.job_location} onChange={handleInputChange} placeholder="City/State" />
+                      <FormLabel fontWeight="medium" color="gray.600">Type of Hiring</FormLabel>
+                      <Select name="type_of_hiring" value={newEvent.type_of_hiring} onChange={handleInputChange} placeholder="Select Hiring Type" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }}>
+                         <option value="On Campus">On Campus</option>
+                         <option value="Off Campus">Off Campus</option>
+                         <option value="Pool Campus">Pool Campus</option>
+                         <option value="Virtual">Virtual</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel fontWeight="medium" color="gray.600">Job Location</FormLabel>
+                      <Input name="job_location" value={newEvent.job_location} onChange={handleInputChange} placeholder="City/State" bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
                     </FormControl>
 
                     <FormControl gridColumn={{ md: "span 2" }}>
-                      <FormLabel>Job Description</FormLabel>
-                      <Textarea name="job_description" value={newEvent.job_description} onChange={handleInputChange} placeholder="Job description..." rows={3} />
+                      <FormLabel fontWeight="medium" color="gray.600">Job Description</FormLabel>
+                      <Textarea name="job_description" value={newEvent.job_description} onChange={handleInputChange} placeholder="Job description..." rows={3} bg="gray.50" _focus={{ bg: 'white', borderColor: 'blue.500' }} />
                     </FormControl>
                   </SimpleGrid>
                 </Box>
 
-                <Divider />
-
                 {/* Section 2: Schedule & Logistics */}
-                <Box>
-                  <Heading size="sm" mb={3} color="blue.600">Schedule & Logistics</Heading>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="purple.50" p={2} borderRadius="md">
+                       <SettingsIcon color="purple.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Schedule & Logistics</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <FormControl isRequired>
-                      <FormLabel>Event Date</FormLabel>
+                      <FormLabel fontWeight="medium" color="gray.600">Event Date</FormLabel>
                       <Input 
                         type="datetime-local" 
                         name="event_datetime" 
                         value={newEvent.event_datetime} 
-                        onChange={handleInputChange} 
+                        onChange={handleInputChange}
+                        bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} 
                       />
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Last Date to Reg</FormLabel>
+                      <FormLabel fontWeight="medium" color="gray.600">Last Date to Reg</FormLabel>
                       <Input 
                         type="date" 
                         name="last_date_to_registration" 
                         value={newEvent.last_date_to_registration} 
                         onChange={handleInputChange} 
+                        bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}
                       />
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Year (Batch)</FormLabel>
-                      <Input name="year" value={newEvent.year} onChange={handleInputChange} placeholder="2024" />
+                      <FormLabel fontWeight="medium" color="gray.600">Year (Batch)</FormLabel>
+                      <Input name="year" value={newEvent.year} onChange={handleInputChange} placeholder="2024" bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>TPO Name</FormLabel>
-                      <Input name="tpo" value={newEvent.tpo} onChange={handleInputChange} />
+                      <FormLabel fontWeight="medium" color="gray.600">TPO Name</FormLabel>
+                      <Input name="tpo" value={newEvent.tpo} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Number of Openings</FormLabel>
-                      <Input type="number" name="number_of_openings" value={newEvent.number_of_openings} onChange={handleInputChange} />
+                      <FormLabel fontWeight="medium" color="gray.600">Number of Openings</FormLabel>
+                      <Input type="number" name="number_of_openings" value={newEvent.number_of_openings} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }} />
                     </FormControl>
                     
                     <FormControl>
-                       <FormLabel>Placement Status</FormLabel>
-                       <Select name="placement_status" value={newEvent.placement_status} onChange={handleInputChange}>
+                       <FormLabel fontWeight="medium" color="gray.600">Placement Status</FormLabel>
+                       <Select name="placement_status" value={newEvent.placement_status} onChange={handleInputChange} bg="gray.50" _focus={{ bg: 'white', borderColor: 'purple.500' }}>
                           <option value="Scheduled">Scheduled</option>
                           <option value="Ongoing">Ongoing</option>
                           <option value="Completed">Completed</option>
@@ -916,66 +973,108 @@ const Events = () => {
                   </SimpleGrid>
                 </Box>
 
-                <Divider />
-
                 {/* Section 3: Eligibility & Target Audience */}
-                <Box>
-                  <Heading size="sm" mb={3} color="blue.600">Target Audience</Heading>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="orange.50" p={2} borderRadius="md">
+                       <EditIcon color="orange.500" boxSize={4} />
+                    </Box>
+                    <Heading size="md" color="gray.700">Target Audience</Heading>
+                  </HStack>
+                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <FormControl isRequired>
-                      <FormLabel>School</FormLabel>
-                      <Select name="school_id" value={newEvent.school_id} onChange={handleInputChange} placeholder="Select School">
+                      <FormLabel fontWeight="medium" color="gray.600">School</FormLabel>
+                      <Select name="school_id" value={newEvent.school_id} onChange={handleInputChange} placeholder="Select School" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
                          {schoolList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </Select>
                     </FormControl>
 
                     <FormControl>
-                       <FormLabel>Program</FormLabel>
-                       <Select name="program_id" value={newEvent.program_id} onChange={handleInputChange} placeholder="Select Program">
+                       <FormLabel fontWeight="medium" color="gray.600">Program</FormLabel>
+                       <Select name="program_id" value={newEvent.program_id} onChange={handleInputChange} placeholder="Select Program" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }}>
                           {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                        </Select>
                     </FormControl>
 
                     <FormControl>
-                      <FormLabel>Min CGPA</FormLabel>
-                      <Input name="min_cgpa" value={newEvent.min_cgpa} onChange={handleInputChange} placeholder="e.g. 7.5" />
+                      <FormLabel fontWeight="medium" color="gray.600">Min CGPA</FormLabel>
+                      <Input name="min_cgpa" value={newEvent.min_cgpa} onChange={handleInputChange} placeholder="e.g. 7.5" bg="gray.50" _focus={{ bg: 'white', borderColor: 'orange.500' }} />
                     </FormControl>
                   </SimpleGrid>
                 </Box>
-
-                <Divider />
 
                 {/* Section 4: Compensation */}
-                <Box>
-                  <Heading size="sm" mb={3} color="blue.600">Compensation</Heading>
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                    <FormControl>
-                      <FormLabel>Package (CTC)</FormLabel>
-                      <Input name="ctc" value={newEvent.ctc} onChange={handleInputChange} placeholder="e.g. 10 LPA" />
-                    </FormControl>
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
+                  <HStack mb={5} spacing={3} borderBottomWidth="1px" pb={3} borderColor="gray.100">
+                    <Box bg="green.50" p={2} borderRadius="md">
+                       <Text fontSize="lg" fontWeight="bold" color="green.600">₹</Text>
+                    </Box>
+                    <Heading size="md" color="gray.700">Compensation Details</Heading>
+                  </HStack>
+                  
+                  <Box bg="gray.50" p={4} borderRadius="md" mb={6} borderWidth="1px" borderColor="gray.200">
+                    <Text fontWeight="bold" fontSize="sm" mb={3} color="green.700" textTransform="uppercase" letterSpacing="wide">CTC Structure (LPA)</Text>
+                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Minimum</FormLabel>
+                        <Input type="number" name="ctc_min" value={newEvent.ctc_min} onChange={handleInputChange} placeholder="Min" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Maximum</FormLabel>
+                        <Input type="number" name="ctc_max" value={newEvent.ctc_max} onChange={handleInputChange} placeholder="Max" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Average (Calc)</FormLabel>
+                        <Input type="number" name="ctc_avg" value={newEvent.ctc_avg} isReadOnly bg="gray.100" color="gray.600" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Variable Pay (%)</FormLabel>
+                        <Input type="number" name="ctc_variable" value={newEvent.ctc_variable} onChange={handleInputChange} placeholder="e.g. 10" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Stock Options</FormLabel>
+                        <Input type="number" name="ctc_stock" value={newEvent.ctc_stock} onChange={handleInputChange} placeholder="Stock" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="green.600">Final CTC (Calc)</FormLabel>
+                        <Input type="number" name="ctc_final" value={newEvent.ctc_final} isReadOnly bg="green.50" color="green.700" fontWeight="bold" borderColor="green.200" />
+                      </FormControl>
+                    </SimpleGrid>
+                  </Box>
 
-                    <FormControl>
-                      <FormLabel>Stipend</FormLabel>
-                      <Input name="stipend" value={newEvent.stipend} onChange={handleInputChange} placeholder="e.g. 25000/month" />
-                    </FormControl>
-                  </SimpleGrid>
+                  <Box bg="gray.50" p={4} borderRadius="md" mb={6} borderWidth="1px" borderColor="gray.200">
+                    <Text fontWeight="bold" fontSize="sm" mb={3} color="blue.700" textTransform="uppercase" letterSpacing="wide">Stipend Structure (Monthly)</Text>
+                    <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Minimum</FormLabel>
+                        <Input type="number" name="stipend_min" value={newEvent.stipend_min} onChange={handleInputChange} placeholder="Min" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Maximum</FormLabel>
+                        <Input type="number" name="stipend_max" value={newEvent.stipend_max} onChange={handleInputChange} placeholder="Max" bg="white" />
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel fontSize="xs" fontWeight="bold" color="gray.500">Average (Calc)</FormLabel>
+                        <Input type="number" name="stipend_avg" value={newEvent.stipend_avg} isReadOnly bg="gray.100" color="gray.600" />
+                      </FormControl>
+                    </SimpleGrid>
+                  </Box>
+
                 </Box>
 
-                <Divider />
-
                 {/* Section 5: Remarks */}
-                <Box>
+                <Box bg="white" p={6} borderRadius="lg" shadow="sm" borderWidth="1px" borderColor="gray.200">
                   <FormControl>
-                    <FormLabel>Company Remarks</FormLabel>
-                    <Textarea name="company_remarks" value={newEvent.company_remarks} onChange={handleInputChange} rows={2} />
+                    <FormLabel fontWeight="medium" color="gray.600">Company Remarks</FormLabel>
+                    <Textarea name="company_remarks" value={newEvent.company_remarks} onChange={handleInputChange} rows={2} bg="gray.50" _focus={{ bg: 'white', borderColor: 'gray.500' }} />
                   </FormControl>
                 </Box>
 
               </VStack>
             </ModalBody>
-            <ModalFooter>
-              <Button colorScheme="blue" mr={3} onClick={handleSaveEvent}>{selectedEventId ? 'Update Drive' : 'Save Drive'}</Button>
-              <Button onClick={handleModalClose}>Cancel</Button>
+            <ModalFooter borderTopWidth="1px" borderColor="gray.200" bg="gray.50" borderBottomRadius="md">
+              <Button variant="outline" mr={3} onClick={handleModalClose} bg="white">Cancel</Button>
+              <Button colorScheme="blue" onClick={handleSaveEvent} px={8}>{selectedEventId ? 'Update Drive' : 'Save Drive'}</Button>
             </ModalFooter>
           </ModalContent>
         </Modal>

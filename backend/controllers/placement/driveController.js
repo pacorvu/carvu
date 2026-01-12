@@ -4,10 +4,13 @@ const { pool } = require('../../config/db');
 const getAllDrives = async (req, res) => {
   try {
     const query = `
-      SELECT pd.*, c.company_name, c.company_logo_link, c.company_type, s.name as school_name
+      SELECT pd.*, c.company_name, c.company_logo_link, c.company_type, s.name as school_name,
+             p.name as program_name, sp.name as specialization_name
       FROM placements_drives pd
       LEFT JOIN companies c ON pd.company_id = c.id
       LEFT JOIN schools s ON pd.school_id = s.id
+      LEFT JOIN programs p ON pd.program_id = p.id
+      LEFT JOIN specializations sp ON pd.specialization_id = sp.id
       ORDER BY pd.event_datetime DESC
     `;
     const result = await pool.query(query);
@@ -15,6 +18,8 @@ const getAllDrives = async (req, res) => {
     const enriched = result.rows.map(row => ({
         ...row,
         school: row.school_name, // Map school_name to school for frontend compatibility
+        program: row.program_name,
+        specialization: row.specialization_name,
         company: {
             company_name: row.company_name,
             company_logo_link: row.company_logo_link,
@@ -34,10 +39,13 @@ const getDriveById = async (req, res) => {
   try {
     const { id } = req.params;
     const query = `
-      SELECT pd.*, c.company_name, c.company_logo_link, c.description as company_description, c.company_type, s.name as school_name
+      SELECT pd.*, c.company_name, c.company_logo_link, c.description as company_description, c.company_type, s.name as school_name,
+             p.name as program_name, sp.name as specialization_name
       FROM placements_drives pd
       LEFT JOIN companies c ON pd.company_id = c.id
       LEFT JOIN schools s ON pd.school_id = s.id
+      LEFT JOIN programs p ON pd.program_id = p.id
+      LEFT JOIN specializations sp ON pd.specialization_id = sp.id
       WHERE pd.id = $1
     `;
     const result = await pool.query(query, [id]);
@@ -49,6 +57,8 @@ const getDriveById = async (req, res) => {
     const enriched = {
         ...row,
         school: row.school_name,
+        program: row.program_name,
+        specialization: row.specialization_name,
         company: {
             company_name: row.company_name,
             company_logo_link: row.company_logo_link,
