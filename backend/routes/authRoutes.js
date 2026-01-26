@@ -16,4 +16,10 @@ router.post('/register/verify-otp', authController.verifyRegistrationOtp);
 router.post('/register/send-personal-otp', authController.sendPersonalOtp);
 router.post('/register/verify-personal-otp', authController.verifyPersonalOtp);
 
+// Alumni Registration Routes
+router.post('/alumni/validate-code', authController.validateAlumniCode);
+router.post('/alumni/send-otp', authController.sendAlumniOtp);
+router.post('/alumni/verify-otp', authController.verifyAlumniOtp);
+router.post('/alumni/register', authController.registerAlumni);
+
 module.exports = router;

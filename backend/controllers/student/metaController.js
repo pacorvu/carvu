@@ -64,7 +64,7 @@ const getPrograms = async (req, res) => {
 
     if (schoolId) {
         query = `
-            SELECT p.* 
+            SELECT p.*, s.id as school_id
             FROM programs p
             JOIN schools s ON p.school_name = s.name
             WHERE s.id = $1
@@ -72,7 +72,12 @@ const getPrograms = async (req, res) => {
         `;
         params.push(schoolId);
     } else {
-        query = 'SELECT * FROM programs ORDER BY name ASC';
+        query = `
+            SELECT p.*, s.id as school_id 
+            FROM programs p
+            LEFT JOIN schools s ON p.school_name = s.name
+            ORDER BY p.name ASC
+        `;
     }
 
     const result = await pool.query(query, params);

@@ -1162,8 +1162,11 @@ export const Register = () => {
         default:
           break;
       }
+    } else if (role === 'alumni') {
+        navigate('/alumni/register');
+        setRole(null);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, role]);
 
   useEffect(() => {
     try {
@@ -1186,7 +1189,7 @@ export const Register = () => {
                 <SimpleGrid columns={{ base: 1, sm: 2 }} gap={4} w="full">
                     <RoleCard title="Student" icon={FaUserGraduate} onClick={() => setRole('student')} />
                     <RoleCard title="Company" icon={FaBuilding} onClick={() => setRole('company')} />
-                    <RoleCard title="Alumni" icon={FaUserTie} onClick={() => setRole('alumni')} />
+                    <RoleCard title="Alumni" icon={FaUserTie} onClick={() => navigate('/alumni/register')} />
                     <RoleCard title="Placement Team" icon={FaChalkboardTeacher} onClick={() => setRole('verifier')} />
                 </SimpleGrid>
                 <Text textAlign="center" fontSize="sm" color="gray.600">

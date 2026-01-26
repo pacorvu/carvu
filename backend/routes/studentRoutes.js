@@ -16,8 +16,8 @@ const otherExperiencesRoutes = require('./student/otherExperiencesRoutes');
 const certificationsRoutes = require('./student/certificationsRoutes');
 const extraCurricularRoutes = require('./student/extraCurricularRoutes');
 const resumeRoutes = require('./student/resumeRoutes');
+const fileRoutes = require('./student/fileRoutes');
 
-// Mount all routers
 router.use('/', metaRoutes);
 router.use('/', personalRoutes);
 router.use('/', contactRoutes);
@@ -33,5 +33,6 @@ router.use('/', otherExperiencesRoutes);
 router.use('/', certificationsRoutes);
 router.use('/', extraCurricularRoutes);
 router.use('/', resumeRoutes);
+router.use('/', fileRoutes);
 
 module.exports = router;

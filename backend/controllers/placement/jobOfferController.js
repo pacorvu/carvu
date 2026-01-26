@@ -130,6 +130,7 @@ const getStudentOffers = async (req, res) => {
         o.usn,
         spd.full_name as student_name,
         spd.school_name as school,
+        spd.year_of_joining as batch,
         o.job_type,
         o.remarks,
         o.created_at,

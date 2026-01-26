@@ -36,6 +36,8 @@ export const EditProfile = () => {
   const [majorOptions, setMajorOptions] = useState([])
   const [minorOptions, setMinorOptions] = useState([])
   const [specializationOptions, setSpecializationOptions] = useState([])
+  const [schoolOptions, setSchoolOptions] = useState([])
+  const [programOptions, setProgramOptions] = useState([])
 
   const initialDataRef = useRef(null)
 
@@ -129,14 +131,18 @@ export const EditProfile = () => {
                 const fullProfile = await StudentProfileService.getFullProfile(usn)
                 setData(fullProfile)
             } else if (section === 'personal') {
-                const [maj, min, spec] = await Promise.all([
+                const [maj, min, spec, schools, programs] = await Promise.all([
                   StudentProfileService.getMajors().catch(() => []),
                   StudentProfileService.getMinors().catch(() => []),
                   StudentProfileService.getSpecializations().catch(() => []),
+                  StudentProfileService.getSchools().catch(() => []),
+                  StudentProfileService.getPrograms().catch(() => []),
                 ])
                 setMajorOptions(Array.isArray(maj) ? maj : [])
                 setMinorOptions(Array.isArray(min) ? min : [])
                 setSpecializationOptions(Array.isArray(spec) ? spec : [])
+                setSchoolOptions(Array.isArray(schools) ? schools : [])
+                setProgramOptions(Array.isArray(programs) ? programs : [])
 
                 const sectionData = await StudentProfileService.getSection(usn, 'personal')
                 setData(sectionData || {})
@@ -211,6 +217,8 @@ export const EditProfile = () => {
                   majorOptions={majorOptions}
                   minorOptions={minorOptions}
                   specializationOptions={specializationOptions}
+                  schoolOptions={schoolOptions}
+                  programOptions={programOptions}
                   allowEditMajor={allowEditMajor}
                   allowEditMinor={allowEditMinor}
                   allowEditSpecialization={allowEditSpecialization}

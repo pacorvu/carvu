@@ -61,7 +61,10 @@ const columnMapping = {
       minor_id: 'minorId',
       is_profile_locked: 'isProfileLocked',
       gender: 'gender',
-      languages: 'languages'
+      languages: 'languages',
+      current_year: 'currentYear',
+      current_semester: 'currentSemester',
+      section: 'section'
     }
   },
   contact: {
@@ -160,8 +163,8 @@ const columnMapping = {
       sgpa: 'result_in_sgpa', // Map frontend sgpa to DB result_in_sgpa
       closedBacklogs: 'closed_backlogs',
       liveBacklogs: 'live_backlogs',
-      provisionalResultUploadLink: 'provisional_result_upload_link',
-      resultUploadLink: 'provisional_result_upload_link', // Map frontend resultUploadLink
+      provisionalResultUploadLink: 'provisional_result_upload_links',
+      resultUploadLink: 'provisional_result_upload_links', // Map frontend resultUploadLink
       semester: 'semester'
     },
     fromDb: {
@@ -169,33 +172,50 @@ const columnMapping = {
       result_in_sgpa: 'sgpa', // Return as sgpa
       closed_backlogs: 'closedBacklogs',
       live_backlogs: 'liveBacklogs',
-      provisional_result_upload_link: 'resultUploadLink', // Return as resultUploadLink
+      provisional_result_upload_links: 'resultUploadLink', // Return as resultUploadLink
       semester: 'semester'
     }
   },
   projects: {
     toDb: {
+      id: 'id',
       title: 'title',
-      projectLink: 'project_link',
-      link: 'project_link',
-      technologies: 'skills',
-      skills: 'skills',
-      proofFile: 'snaps',
-      snaps: 'snaps',
+      projectLink: 'hosted_link',
+      link: 'hosted_link',
+      hostedLink: 'hosted_link',
+      githubRepo: 'github_repo',
+      technologies: 'technologies',
+      skills: 'technologies',
+      proofFile: 'project_snaps',
+      snaps: 'project_snaps',
       mentorName: 'mentor_name',
-      description: 'description',
-      role: 'role',
-      teamSize: 'team_size'
+      description: 'full_description',
+      fullDescription: 'full_description',
+      oneLineDescription: 'one_line_description',
+      genre: 'genre',
+      visibility: 'visibility',
+      selfRating: 'self_rating',
+      views: 'views',
+      likes: 'likes',
+      downloads: 'downloads'
     },
     fromDb: {
+      id: 'id',
       title: 'title',
-      project_link: 'projectLink',
-      skills: 'skills', 
-      snaps: 'proofFile',
+      hosted_link: 'projectLink',
+      github_repo: 'githubRepo',
+      technologies: 'skills', 
+      project_snaps: 'snaps',
       mentor_name: 'mentorName',
-      description: 'description',
-      role: 'role',
-      team_size: 'teamSize'
+      full_description: 'description',
+      one_line_description: 'oneLineDescription',
+      genre: 'genre',
+      visibility: 'visibility',
+      self_rating: 'selfRating',
+      priority: 'priority',
+      views: 'views',
+      likes: 'likes',
+      downloads: 'downloads'
     }
   },
   internships: {

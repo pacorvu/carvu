@@ -194,7 +194,10 @@ const refresh = async (req, res) => {
   const client = await pool.connect();
   try {
     const raw = req.cookies?.refresh_token;
-    if (!raw) return res.status(401).json({ error: 'no refresh' });
+    if (!raw) {
+      console.warn('[Auth] Refresh failed: No refresh_token cookie present in request');
+      return res.status(401).json({ error: 'no refresh cookie' });
+    }
 
     const hash = sha256(raw);
     const loginTable = await getLoginTable();
@@ -213,7 +216,8 @@ const refresh = async (req, res) => {
     if (!q.rows.length) {
       await client.query('rollback');
       clearRefreshCookie(res);
-      return res.status(401).json({ error: 'invalid refresh' });
+      console.warn('[Auth] Refresh failed: Token not found, revoked, or expired in DB');
+      return res.status(401).json({ error: 'invalid or expired refresh token' });
     }
 
     const row = q.rows[0];
@@ -579,6 +583,259 @@ const registerStudent = async (req, res) => {
   }
 };
 
+// --- Alumni Registration ---
+
+const validateAlumniCode = async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Code required' });
+
+    const result = await pool.query(
+        'SELECT * FROM alumni_registration_codes WHERE code = $1', 
+        [code]
+    );
+
+    if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Invalid code' });
+    }
+
+    const registrationCode = result.rows[0];
+
+    if (!registrationCode.is_active) {
+        return res.status(400).json({ error: 'Code is inactive' });
+    }
+
+    if (registrationCode.max_uses > 0 && registrationCode.used_count >= registrationCode.max_uses) {
+        return res.status(400).json({ error: 'Code usage limit exceeded' });
+    }
+    
+    res.json({ 
+        valid: true, 
+        batch_year: registrationCode.batch_year, 
+        institution_name: registrationCode.institution_name,
+        remarks: registrationCode.remarks,
+        code_id: registrationCode.id 
+    });
+  } catch (err) {
+    console.error('Validate Code Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const sendAlumniOtp = async (req, res) => {
+    try {
+        let { email, code_id } = req.body;
+        email = String(email || '').toLowerCase();
+        
+        if (!email || !code_id) return res.status(400).json({ error: 'Email and Code ID required' });
+
+        const codeRes = await pool.query('SELECT * FROM alumni_registration_codes WHERE id = $1', [code_id]);
+        if (!codeRes.rows.length) return res.status(400).json({ error: 'Invalid code reference' });
+
+        // Check if email exists in user_login
+        const loginTable = await getLoginTable();
+        const loginCheck = await pool.query(`SELECT 1 FROM ${loginTable} WHERE mail = $1`, [email]);
+        if (loginCheck.rows.length > 0) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+
+        // Check if email exists in students_personal_details (personal or college email)
+        const studentEmailCol = await getStudentEmailColumn();
+        const studentCheckQuery = `
+            SELECT 1 FROM students_personal_details 
+            WHERE LOWER(personal_email) = $1 
+            ${studentEmailCol ? `OR LOWER("${studentEmailCol}") = $1` : ''}
+        `;
+        const studentCheck = await pool.query(studentCheckQuery, [email]);
+        if (studentCheck.rows.length > 0) {
+            return res.status(400).json({ error: 'Email already linked to a student' });
+        }
+
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        const ttlMin = 10;
+
+        await pool.query(
+            `INSERT INTO user_otp_verification (identifier, otp_hash, purpose, expires_at)
+             VALUES ($1, $2, 'ALUMNI_REGISTRATION', (now()::timestamp + make_interval(mins => $3)))`,
+            [email, otp, ttlMin]
+        );
+
+        const smtpUser = String(process.env.SMTP_EMAIL || '').toLowerCase().trim();
+        const smtpPass = String(process.env.SMTP_PASSWORD || '').trim();
+        const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+        const port = Number(process.env.SMTP_PORT || 587);
+
+        if (!smtpUser || !smtpPass) {
+             console.log(`[DEV] Alumni OTP for ${email}: ${otp}`);
+             return res.json({ ok: true, dev: true });
+        }
+
+        const transporter = nodemailer.createTransport({
+          host, port, secure: false, auth: { user: smtpUser, pass: smtpPass }
+        });
+
+        await transporter.sendMail({
+          from: smtpUser,
+          to: email,
+          subject: 'Alumni Registration OTP',
+          text: `Your OTP is ${otp}.`,
+          html: `<p>Your OTP is <strong>${otp}</strong>.</p>`
+        });
+        
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('Send Alumni OTP Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+};
+
+const verifyAlumniOtp = async (req, res) => {
+    try {
+        let { email, otp } = req.body;
+        email = String(email || '').toLowerCase();
+        otp = String(otp || '').trim();
+
+        if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+
+        const q = await pool.query(
+            `SELECT id, otp_hash, expires_at, (expires_at <= now()::timestamp) as expired 
+             FROM user_otp_verification 
+             WHERE identifier=$1 AND purpose='ALUMNI_REGISTRATION' AND verified=false
+             ORDER BY created_at DESC LIMIT 1`,
+            [email]
+        );
+
+        if (!q.rows.length) return res.status(400).json({ error: 'No pending OTP found' });
+        const row = q.rows[0];
+
+        if (row.expired) return res.status(400).json({ error: 'OTP expired' });
+        if (row.otp_hash !== otp) return res.status(400).json({ error: 'Invalid OTP' });
+
+        await pool.query('UPDATE user_otp_verification SET verified=true WHERE id=$1', [row.id]);
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('Verify Alumni OTP Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+};
+
+const registerAlumni = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { 
+            code_id, email, password,
+            full_name, phone_number, linkedin, 
+            current_company, current_designation, current_work_location,
+            usn: providedUsn
+        } = req.body;
+
+        // 1. Verify OTP was verified in DB
+        const otpCheck = await client.query(
+            `SELECT verified 
+             FROM user_otp_verification 
+             WHERE identifier=$1 AND purpose='ALUMNI_REGISTRATION'
+             ORDER BY created_at DESC LIMIT 1`,
+            [email]
+        );
+        
+        if (!otpCheck.rows.length || !otpCheck.rows[0].verified) {
+            throw new Error('Email OTP not verified');
+        }
+
+        // 2. Get Code Details
+        const codeRes = await client.query('SELECT * FROM alumni_registration_codes WHERE id = $1 FOR UPDATE', [code_id]);
+        if (!codeRes.rows.length) throw new Error('Invalid code');
+        const codeData = codeRes.rows[0];
+        
+        if (!codeData.is_active) throw new Error('Code inactive');
+        if (codeData.max_uses > 0 && codeData.used_count >= codeData.max_uses) throw new Error('Code usage limit reached');
+
+        // 3. Handle User/Student Creation
+        const roleRes = await client.query("SELECT id FROM roles WHERE LOWER(name)='alumni'");
+        if (!roleRes.rows.length) throw new Error('Alumni role not found');
+        const alumniRoleId = roleRes.rows[0].id;
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        let usn = providedUsn;
+        if (!usn) {
+            // Generate USN if not provided
+            const crypto = require('crypto');
+            usn = `EXT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+        }
+
+        // Check/Create Student Record (Required for FK)
+        const studentCheck = await client.query('SELECT usn FROM students_personal_details WHERE usn=$1', [usn]);
+        if (!studentCheck.rows.length) {
+             // Find a default program or handle program_id
+             const progRes = await client.query('SELECT id, school_name FROM programs LIMIT 1');
+             const programId = progRes.rows[0]?.id;
+             const schoolName = progRes.rows[0]?.school_name || 'SoCSE';
+             
+             await client.query(
+                `INSERT INTO students_personal_details (usn, full_name, personal_email, program_id, phone_number, school_name, year_of_joining, current_year, current_semester, is_eligible, "Opt_In")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [usn, full_name, email, programId, phone_number, schoolName, codeData.batch_year, 4, 8, false, false]
+             );
+        }
+
+        // Create User Login
+        const loginTable = await getLoginTable();
+        // Check if login exists
+        const loginCheck = await client.query(`SELECT id FROM ${loginTable} WHERE usn=$1`, [usn]);
+        if (loginCheck.rows.length) {
+            // Update existing login to Alumni? Or fail?
+            // Assuming update for now if it exists
+             await client.query(
+                `UPDATE ${loginTable} SET role_id=$1, password_hash=$2, is_active=true WHERE usn=$3`,
+                [alumniRoleId, passwordHash, usn]
+            );
+        } else {
+             await client.query(
+                `INSERT INTO ${loginTable} (usn, mail, role_id, password_hash, is_active)
+                 VALUES ($1, $2, $3, $4, true)`,
+                [usn, email, alumniRoleId, passwordHash]
+            );
+        }
+
+        // 4. Insert Alumni Record
+        await client.query(
+            `INSERT INTO alumni (
+                usn, full_name, graduation_year, institution_name, 
+                registration_code_id, alumni_remark, is_verified,
+                personal_email, phone_number, linkedin,
+                current_company, current_designation, current_work_location
+            ) VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (usn) DO UPDATE SET
+                institution_name=excluded.institution_name,
+                registration_code_id=excluded.registration_code_id,
+                alumni_remark=excluded.alumni_remark,
+                is_verified=true,
+                current_company=excluded.current_company,
+                current_designation=excluded.current_designation`,
+            [
+                usn, full_name, codeData.batch_year, codeData.institution_name,
+                code_id, codeData.remarks, 
+                email, phone_number, linkedin,
+                current_company, current_designation, current_work_location
+            ]
+        );
+
+        // 5. Increment Code Usage
+        await client.query('UPDATE alumni_registration_codes SET used_count = used_count + 1 WHERE id = $1', [code_id]);
+
+        await client.query('COMMIT');
+        res.json({ ok: true, usn });
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Register Alumni Error:', e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
   login,
   refresh,
@@ -589,5 +846,9 @@ module.exports = {
   sendRegistrationOtp,
   verifyRegistrationOtp,
   sendPersonalOtp,
-  verifyPersonalOtp
+  verifyPersonalOtp,
+  validateAlumniCode,
+  sendAlumniOtp,
+  verifyAlumniOtp,
+  registerAlumni
 };

@@ -107,13 +107,19 @@ const getFullProfile = async (req, res) => {
       `, [usn]);
       fullProfile.placements = placementsRes.rows;
 
-      const offersRes = await pool.query('SELECT * FROM job_offers WHERE usn = $1', [usn]);
-      fullProfile.jobOffers = offersRes.rows;
+      const offersTableCheck = await pool.query("SELECT to_regclass('public.offers') as tbl");
+      const offersTable = offersTableCheck.rows[0] && offersTableCheck.rows[0].tbl;
+
+      if (offersTable) {
+        const offersRes = await pool.query('SELECT * FROM offers WHERE usn = $1', [usn]);
+        fullProfile.jobOffers = offersRes.rows;
+      } else {
+        fullProfile.jobOffers = [];
+      }
     } catch (err) {
       console.error('Error fetching placements/offers for full profile:', err);
-      // Don't fail the whole request if these fail, just log
-      fullProfile.placements = [];
-      fullProfile.jobOffers = [];
+      fullProfile.placements = fullProfile.placements || [];
+      fullProfile.jobOffers = fullProfile.jobOffers || [];
     }
 
     return res.json(fullProfile);

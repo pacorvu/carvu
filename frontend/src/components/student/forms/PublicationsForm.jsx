@@ -15,14 +15,20 @@ import {
   Flex,
   Textarea,
   Select,
-  useColorModeValue
+  useColorModeValue,
+  useToast
 } from "@chakra-ui/react";
 import { Field } from "../../ui/field";
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { useAuth } from "../../../context/AuthContext";
+import { StudentProfileService } from "../../../services/studentProfile.service";
 
 export const PublicationsForm = ({ data = {}, onUpdate, isEditing = false }) => {
   const items = Array.isArray(data) ? data : (data.publications || []);
   const bg = useColorModeValue("white", "gray.700");
+  const toast = useToast();
+  const { user } = useAuth();
+  const usn = user?.usn;
 
   const handleChange = (index, field, value) => {
     const newItems = [...items];
@@ -50,6 +56,33 @@ export const PublicationsForm = ({ data = {}, onUpdate, isEditing = false }) => 
   const handleDelete = (index) => {
     const newItems = items.filter((_, i) => i !== index);
     onUpdate(newItems);
+  };
+
+  const handleUpload = async (index, file) => {
+    if (!file || !usn) return;
+    try {
+      const result = await StudentProfileService.uploadFile(usn, file, { folder: "publications" });
+      const url = result?.url || result?.path;
+      if (url) {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], evidenceDocument: url };
+        onUpdate(newItems);
+        toast({
+          status: "success",
+          description: "File uploaded",
+          duration: 3000,
+          isClosable: true
+        });
+      }
+    } catch (e) {
+      console.error("Error uploading publication file:", e);
+      toast({
+        status: "error",
+        description: "File upload failed",
+        duration: 4000,
+        isClosable: true
+      });
+    }
   };
 
   return (
@@ -193,8 +226,22 @@ const PublicationItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             isDisabled={!isEditing}
                         />
                     </Field>
-                    <Field label="Evidence Document Link">
+                    <Field label="Evidence Document">
+                        {isEditing && (
+                          <Input
+                            type="file"
+                            p={1}
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                            onChange={async (e) => {
+                              const file = e.target.files && e.target.files[0]
+                              if (!file) return
+                              await handleUpload(index, file)
+                            }}
+                            variant="outline"
+                          />
+                        )}
                         <Input 
+                            mt={2}
                             value={item.evidenceDocument || ""} 
                             onChange={(e) => onChange(index, "evidenceDocument", e.target.value)} 
                             variant="flushed"

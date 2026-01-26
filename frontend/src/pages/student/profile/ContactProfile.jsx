@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, useToast } from "@chakra-ui/react"
+import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, useToast, Badge, Flex, CircularProgress, CircularProgressLabel } from "@chakra-ui/react"
 import { StudentProfileLayout } from "../../../components/student/StudentProfileLayout"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useNavigate, useBlocker, useBeforeUnload } from "react-router-dom"
@@ -6,6 +6,7 @@ import { StudentProfileService } from "../../../services/studentProfile.service"
 import { useAuth } from "../../../context/AuthContext"
 import { ContactLinksForm } from "../../../components/student/forms/ContactLinksForm"
 import isEqual from "lodash/isEqual"
+import { calculateSectionCompletion } from "../../../utils/profileHelper"
 
 export const ContactProfile = () => {
   const navigate = useNavigate()
@@ -23,6 +24,11 @@ export const ContactProfile = () => {
   const hasUnsavedChanges = useMemo(() => {
     if (!initialDataRef.current || !data) return false
     return !isEqual(initialDataRef.current, data)
+  }, [data])
+
+  const completionPercent = useMemo(() => {
+    if (!data) return 0
+    return calculateSectionCompletion("communication", { contact: data })
   }, [data])
 
   const blocker = useBlocker(
@@ -155,7 +161,23 @@ export const ContactProfile = () => {
 
   return (
     <StudentProfileLayout>
-      <Box maxW="5xl" mx="auto">
+      <Box maxW="5xl" mx="auto" position="relative" pt={8}>
+        {!isEditing && (
+            <Box position="absolute" top={0} right={0} zIndex={2}>
+                <CircularProgress 
+                    value={completionPercent} 
+                    color={completionPercent === 100 ? "green.400" : "#d4a960"} 
+                    size="60px"
+                    thickness="10px"
+                    trackColor="gray.100"
+                >
+                    <CircularProgressLabel fontSize="sm" fontWeight="bold" color="gray.600">
+                        {completionPercent}%
+                    </CircularProgressLabel>
+                </CircularProgress>
+            </Box>
+        )}
+
         <ContactLinksForm
             data={data}
             onUpdate={handleUpdate}

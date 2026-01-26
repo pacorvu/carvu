@@ -28,6 +28,11 @@ const getAllStudents = async (req, res) => {
          spd.phone_number as contact,
          spd.links,
          
+         spd.is_eligible_internship,
+         spd.is_eligible_immersion,
+         spd.is_eligible_capstone,
+         spd.is_eligible_placement,
+
          -- Academics (Latest Snapshot)
          (SELECT academic_year FROM student_semester_academics WHERE usn = spd.usn ORDER BY academic_year DESC, semester DESC LIMIT 1) as latest_academic_year,
          (SELECT semester FROM student_semester_academics WHERE usn = spd.usn ORDER BY academic_year DESC, semester DESC LIMIT 1) as latest_semester,
@@ -155,6 +160,84 @@ const getAllStudents = async (req, res) => {
   }
 };
 
+// Promote students
+const promoteStudents = async (req, res) => {
+  const { usns, target_semester, target_year } = req.body;
+  if (!usns || !Array.isArray(usns) || usns.length === 0) {
+    return res.status(400).json({ error: "No students selected for promotion" });
+  }
+
+  // If target_semester or target_year are missing, we could try to auto-increment, but explicit is better.
+  if (!target_semester || !target_year) {
+      return res.status(400).json({ error: "Target semester and year are required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const query = `
+      UPDATE students_personal_details
+      SET current_semester = $1, current_year = $2
+      WHERE usn = ANY($3)
+    `;
+    
+    await client.query(query, [target_semester, target_year, usns]);
+    
+    await client.query('COMMIT');
+    res.json({ message: `Successfully promoted ${usns.length} students` });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error("Error promoting students:", error);
+    res.status(500).json({ error: "Failed to promote students" });
+  } finally {
+    client.release();
+  }
+};
+
+// Update student eligibility
+const updateStudentEligibility = async (req, res) => {
+  try {
+    const { usn } = req.params;
+    const { 
+      is_eligible_internship, 
+      is_eligible_immersion, 
+      is_eligible_capstone, 
+      is_eligible_placement 
+    } = req.body;
+
+    const query = `
+      UPDATE students_personal_details
+      SET 
+        is_eligible_internship = COALESCE($1, is_eligible_internship),
+        is_eligible_immersion = COALESCE($2, is_eligible_immersion),
+        is_eligible_capstone = COALESCE($3, is_eligible_capstone),
+        is_eligible_placement = COALESCE($4, is_eligible_placement)
+      WHERE usn = $5
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [
+      is_eligible_internship, 
+      is_eligible_immersion, 
+      is_eligible_capstone, 
+      is_eligible_placement,
+      usn
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
-  getAllStudents
+  getAllStudents,
+  promoteStudents,
+  updateStudentEligibility
 };

@@ -198,15 +198,86 @@ export const PlacementService = {
   // --- STUDENTS ---
   getAllStudents: async () => {
     try {
-      const res = await authFetch(`${API_URL}/placement/students`, {
+      const res = await authFetch(`${API_URL}/placement/students?t=${Date.now()}`, {
         headers: getHeaders()
       });
-      if (!res.ok) throw new Error('Failed to fetch students');
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch students');
+      }
       return await res.json();
     } catch (error) {
       console.error('Error fetching students:', error);
-      throw error;
+      if (error.message === 'Forbidden') throw error;
+      return [];
     }
+  },
+
+  updateStudentEligibility: async (usn, data) => {
+    const res = await authFetch(`${API_URL}/placement/students/${usn}/eligibility`, {
+      method: 'PUT',
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to update student eligibility');
+    }
+    return await res.json();
+  },
+
+  getPlacementOverview: async (academicYear) => {
+    try {
+      const query = academicYear ? `?academic_year=${encodeURIComponent(academicYear)}` : '';
+      const res = await authFetch(`${API_URL}/placement/students/overview${query}`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+         if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+         throw new Error('Failed to fetch placement overview');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching placement overview:', error);
+      if (error.message === 'Forbidden') throw error;
+      return { rows: [], academicYears: [] };
+    }
+  },
+
+  promoteStudents: async (data) => {
+    const res = await authFetch(`${API_URL}/placement/students/promote`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to promote students');
+    }
+    return await res.json();
+  },
+
+  promoteToAlumni: async (data) => {
+    const res = await authFetch(`${API_URL}/placement/alumni/promote`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to promote students to alumni');
+    }
+    return await res.json();
   },
 
   // --- STUDENT PROCESS ---
@@ -321,6 +392,23 @@ export const PlacementService = {
     }
   },
 
+  getEligibleAlumni: async () => {
+    try {
+      const res = await authFetch(`${API_URL}/placement/alumni/eligible`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch eligible alumni');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching eligible alumni:', error);
+      if (error.message === 'Forbidden') throw error;
+      return [];
+    }
+  },
+
   addAlumni: async (data) => {
     const res = await authFetch(`${API_URL}/placement/alumni`, {
         method: 'POST',
@@ -334,23 +422,6 @@ export const PlacementService = {
     if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || 'Failed to add alumni');
-    }
-    return await res.json();
-  },
-
-  promoteStudents: async (data) => {
-    const res = await authFetch(`${API_URL}/placement/alumni/promote`, {
-        method: 'POST',
-        headers: {
-            ...getHeaders(),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    });
-    
-    if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to promote students');
     }
     return await res.json();
   },
@@ -369,6 +440,54 @@ export const PlacementService = {
       console.error('Error fetching alumni details:', error);
       return null;
     }
+  },
+
+  // --- ALUMNI CODES ---
+  generateRegistrationCode: async (data) => {
+    const res = await authFetch(`${API_URL}/placement/alumni/codes`, {
+        method: 'POST',
+        headers: {
+            ...getHeaders(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to generate code');
+    }
+    return await res.json();
+  },
+
+  getRegistrationCodes: async () => {
+    try {
+      const res = await authFetch(`${API_URL}/placement/alumni/codes`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch codes');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching codes:', error);
+      if (error.message === 'Forbidden') throw error;
+      return [];
+    }
+  },
+
+  deleteRegistrationCode: async (id) => {
+    const res = await authFetch(`${API_URL}/placement/alumni/codes/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to delete code');
+    }
+    return await res.json();
   },
 
   // --- EVENTS (New) ---
@@ -397,9 +516,41 @@ export const PlacementService = {
       return [];
   },
 
-  getAllStudentProjects: async () => {
-    // Placeholder: Return empty array as backend endpoint not yet implemented
-    return [];
+  toggleFavorite: async (userId, projectId) => {
+      // Placeholder: Fake implementation
+      return { success: true, isFavorited: true };
+  },
+
+  getAllStudentProjects: async (params = {}) => {
+    try {
+        // Construct query string
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${API_URL}/placement/projects${queryString ? `?${queryString}` : ''}`;
+        
+        const res = await authFetch(url, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch projects');
+        return await res.json();
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        return [];
+    }
+  },
+
+  rateProject: async (id, rating, feedback) => {
+    const res = await authFetch(`${API_URL}/placement/projects/${id}/rate`, {
+        method: 'PUT',
+        headers: {
+            ...getHeaders(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rating, feedback })
+    });
+    
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to rate project');
+    }
+    return await res.json();
   },
 
   // --- STUDENT INFO ---
@@ -420,5 +571,66 @@ export const PlacementService = {
       console.error('Error fetching users:', error);
       return [];
     }
+  },
+
+  // --- BATCH ACADEMIC POLICIES ---
+  getAllPolicies: async () => {
+    try {
+      const res = await authFetch(`${API_URL}/placement/policies`, {
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new Error('Forbidden');
+        throw new Error('Failed to fetch policies');
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+      if (error.message === 'Forbidden') throw error;
+      return [];
+    }
+  },
+
+  upsertPolicy: async (data) => {
+    const res = await authFetch(`${API_URL}/placement/policies`, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to upsert policy');
+    }
+    return await res.json();
+  },
+
+  applyPolicyToStudents: async (id) => {
+    const res = await authFetch(`${API_URL}/placement/policies/${id}/apply`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to apply policy');
+    }
+    return await res.json();
+  },
+
+  syncPolicies: async () => {
+    const res = await authFetch(`${API_URL}/placement/policies/sync`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to sync policies');
+    }
+    return await res.json();
   }
 };

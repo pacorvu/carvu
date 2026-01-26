@@ -24,12 +24,14 @@
  * - DELETE /api/student/profile/education/:id (Delete Item)
  */
 
-import { useState } from "react"
-import { Box, SimpleGrid, Input, Select, VStack, Heading, Flex, Button, Text, IconButton, Collapse } from "@chakra-ui/react"
+import { useState, useEffect } from "react"
+import { Box, SimpleGrid, Input, Select, VStack, Heading, Flex, Button, Text, IconButton, Collapse, useToast } from "@chakra-ui/react"
 import { Field } from "../../ui/field"
 import { FaGraduationCap, FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+import { useAuth } from "../../../context/AuthContext"
+import { StudentProfileService } from "../../../services/studentProfile.service"
 
-const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEditing }) => {
+const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEditing, onFileSelect, isPG }) => {
   const handleChange = (field, value) => {
     onChange({ ...item, [field]: value }, index)
   }
@@ -56,9 +58,13 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
                     <option value="10TH">10th</option>
                     <option value="12TH">12th</option>
                     <option value="DIPLOMA">Diploma</option>
-                    <option value="GRADUATION">Undergraduate</option>
-                    <option value="POST_GRADUATION">Postgraduate</option>
-                    <option value="OTHER">Other</option>
+                    {isPG && (
+                        <>
+                            <option value="GRADUATION">Undergraduate</option>
+                            <option value="POST_GRADUATION">Postgraduate</option>
+                            <option value="OTHER">Other</option>
+                        </>
+                    )}
                 </Select>
             </Field>
             <Field label="Institute Name">
@@ -85,17 +91,15 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
             <Field label="Subjects">
                 <Input value={item.subjects || ""} onChange={(e) => handleChange("subjects", e.target.value)} variant="flushed" isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} />
             </Field>
-            <Field label="Upload Marksheet/Certificate">
-                <Input 
-                    type="file" 
-                    p={1} 
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => handleChange("proofFile", e.target.files[0]?.name)} 
-                    variant="flushed" 
-                    isDisabled={!isEditing} _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }} 
-                />
-                {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
-            </Field>
+          <Field label="Upload Marksheet/Certificate">
+            <EducationFileInput
+                isEditing={isEditing}
+                value={item.proofFile}
+                onChange={(url) => handleChange("proofFile", url)}
+                onFileSelect={onFileSelect ? (file) => onFileSelect(index, file) : undefined}
+            />
+            {item.proofFile && <Text fontSize="xs" color="green.500">Uploaded: {item.proofFile}</Text>}
+          </Field>
           </SimpleGrid>
           
           <Box bg="gray.50" p={4} borderRadius="md">
@@ -123,7 +127,7 @@ const EducationItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEd
   )
 }
 
-export const EducationForm = ({ data = {}, onUpdate, isEditing = false }) => {
+export const EducationForm = ({ data = {}, onUpdate, isEditing = false, onFileSelect }) => {
   // Ensure items is always an array
   const items = Array.isArray(data) ? data : []
 
@@ -154,7 +158,28 @@ export const EducationForm = ({ data = {}, onUpdate, isEditing = false }) => {
       onUpdate(newItems)
   }
 
+  const [isPG, setIsPG] = useState(false)
   const [openIndex, setOpenIndex] = useState(0)
+  const { user } = useAuth()
+  const usn = user?.usn
+
+  useEffect(() => {
+    if (!usn) return
+    const fetchPersonal = async () => {
+        try {
+            const personal = await StudentProfileService.getSection(usn, 'personal')
+            if (personal && personal.programName) {
+                // Simple heuristic: specific PG degrees or starts with M
+                const name = personal.programName.toUpperCase()
+                const isPostGrad = name.startsWith('M') || name.includes('MBA') || name.includes('PG') || name.includes('MASTER')
+                setIsPG(isPostGrad)
+            }
+        } catch (e) {
+            console.error("Failed to determine program type", e)
+        }
+    }
+    fetchPersonal()
+  }, [usn])
 
   return (
     <Box bg="white" p={8} borderRadius="xl" shadow="sm">
@@ -171,6 +196,8 @@ export const EducationForm = ({ data = {}, onUpdate, isEditing = false }) => {
             isOpen={openIndex === index}
             onToggle={() => setOpenIndex(openIndex === index ? -1 : index)}
             isEditing={isEditing}
+            onFileSelect={onFileSelect}
+            isPG={isPG}
           />
         ))}
 
@@ -187,6 +214,88 @@ export const EducationForm = ({ data = {}, onUpdate, isEditing = false }) => {
           Add Education
         </Button>
       </VStack>
+    </Box>
+  )
+}
+
+const EducationFileInput = ({ isEditing, value, onChange, onFileSelect }) => {
+  const toast = useToast()
+  const { user } = useAuth()
+  const usn = user?.usn
+
+  const handleUpload = async (file) => {
+    if (!file || !usn) return
+    try {
+      const result = await StudentProfileService.uploadFile(usn, file, { folder: "education" })
+      const url = result?.url || result?.path
+      if (url) {
+        onChange(url)
+        toast({
+          status: "success",
+          description: "File uploaded",
+          duration: 3000,
+          isClosable: true
+        })
+      }
+    } catch (e) {
+      console.error("Error uploading education file:", e)
+      toast({
+        status: "error",
+        description: "File upload failed",
+        duration: 4000,
+        isClosable: true
+      })
+    }
+  }
+
+  return (
+    <Box>
+      {isEditing && (
+        <Input
+          type="file"
+          p={1}
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+          onChange={async (e) => {
+            const file = e.target.files && e.target.files[0]
+            if (!file) return
+            if (onFileSelect) {
+              onFileSelect(file)
+              toast({
+                status: "info",
+                description: "File selected. It will be uploaded when you save changes.",
+                duration: 3000,
+                isClosable: true
+              })
+              return
+            }
+            await handleUpload(file)
+          }}
+          variant="outline"
+        />
+      )}
+      <Input
+        mt={2}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        variant="flushed"
+        isDisabled={!isEditing}
+        _disabled={{ opacity: 1, cursor: "default", bg: "gray.100", px: 2, py: 1, borderRadius: "md", color: "gray.800" }}
+        placeholder="https://..."
+      />
+      {value && (
+        <Button 
+          size="sm" 
+          mt={2} 
+          as="a" 
+          href={value} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          variant="link" 
+          colorScheme="blue"
+        >
+          View Uploaded File
+        </Button>
+      )}
     </Box>
   )
 }

@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
       }
     } else if (payload?.role_name) {
       const rn = String(payload.role_name).toLowerCase();
-      if (['placement_director', 'placement_officers', 'admin_viewer'].includes(rn)) {
+      if (['placement_director', 'placement_officers', 'placement_officer', 'admin_viewer'].includes(rn)) {
         role = 'admin';
       } else if (rn === 'sudo_admin') {
         role = 'superadmin';

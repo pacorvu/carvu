@@ -1,32 +1,41 @@
-import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, useToast } from "@chakra-ui/react"
+import { Box, Button, HStack, Spinner, Center, Text, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, useToast, Badge, Flex, CircularProgress, CircularProgressLabel } from "@chakra-ui/react"
 import { StudentProfileLayout } from "../../../components/student/StudentProfileLayout"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { useNavigate, useBlocker, useBeforeUnload } from "react-router-dom"
+import { useBlocker, useBeforeUnload } from "react-router-dom"
 import { StudentProfileService } from "../../../services/studentProfile.service"
 import { useAuth } from "../../../context/AuthContext"
 import { PersonalInformationForm } from "../../../components/student/forms/PersonalInformationForm"
 import isEqual from "lodash/isEqual"
+import { calculateSectionCompletion } from "../../../utils/profileHelper"
 
 export const PersonalProfile = () => {
-  const navigate = useNavigate()
+  const toast = useToast()
   const { user } = useAuth()
   const usn = user?.usn 
-  const toast = useToast()
-  
+
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [pendingProfileImageFile, setPendingProfileImageFile] = useState(null)
+  const [pendingProfileImagePreview, setPendingProfileImagePreview] = useState(null)
   
   const [majorOptions, setMajorOptions] = useState([])
   const [minorOptions, setMinorOptions] = useState([])
   const [specializationOptions, setSpecializationOptions] = useState([])
+  const [schoolOptions, setSchoolOptions] = useState([])
+  const [programOptions, setProgramOptions] = useState([])
 
   const initialDataRef = useRef(null)
 
   const hasUnsavedChanges = useMemo(() => {
     if (!initialDataRef.current || !data) return false
     return !isEqual(initialDataRef.current, data)
+  }, [data])
+
+  const completionPercent = useMemo(() => {
+    if (!data) return 0
+    return calculateSectionCompletion("personal", { personal: data })
   }, [data])
 
   // Block navigation when editing
@@ -56,14 +65,18 @@ export const PersonalProfile = () => {
     const fetchData = async () => {
         setLoading(true)
         try {
-            const [maj, min, spec] = await Promise.all([
+            const [maj, min, spec, schools, programs] = await Promise.all([
               StudentProfileService.getMajors().catch(() => []),
               StudentProfileService.getMinors().catch(() => []),
               StudentProfileService.getSpecializations().catch(() => []),
+              StudentProfileService.getSchools().catch(() => []),
+              StudentProfileService.getPrograms().catch(() => []),
             ])
             setMajorOptions(Array.isArray(maj) ? maj : [])
             setMinorOptions(Array.isArray(min) ? min : [])
             setSpecializationOptions(Array.isArray(spec) ? spec : [])
+            setSchoolOptions(Array.isArray(schools) ? schools : [])
+            setProgramOptions(Array.isArray(programs) ? programs : [])
 
             const sectionData = await StudentProfileService.getSection(usn, 'personal')
             setData(sectionData || {})
@@ -86,32 +99,59 @@ export const PersonalProfile = () => {
 
   const handleUpdate = (newData) => setData(newData)
 
+  const handleProfileImageSelect = (file) => {
+    if (!file) return
+    if (pendingProfileImagePreview) {
+      URL.revokeObjectURL(pendingProfileImagePreview)
+    }
+    const previewUrl = URL.createObjectURL(file)
+    setPendingProfileImageFile(file)
+    setPendingProfileImagePreview(previewUrl)
+  }
+
   const handleSave = async () => {
-      if (saving) return
-      setSaving(true)
-      try {
-          await StudentProfileService.saveSection(usn, 'personal', data)
-          initialDataRef.current = data
-          toast({
-              title: "Changes saved successfully",
-              status: "success",
-              duration: 3000,
-              isClosable: true,
-          })
-          setIsEditing(false)
-          return true
-      } catch (error) {
-          console.error("Error saving data:", error)
-          toast({
-              title: "Error saving data",
-              status: "error",
-              duration: 3000,
-              isClosable: true,
-          })
-          return false
-      } finally {
-          setSaving(false)
+    if (saving) return
+    setSaving(true)
+    try {
+      let payload = data
+      if (pendingProfileImageFile && usn) {
+        const uploadResult = await StudentProfileService.uploadFile(usn, pendingProfileImageFile, { folder: "profile-image" })
+        const url = uploadResult?.url || uploadResult?.path
+        if (url) {
+          payload = { ...data, profileImage: url }
+          setData(payload)
+        }
       }
+
+      await StudentProfileService.saveSection(usn, "personal", payload)
+      initialDataRef.current = payload
+
+      if (pendingProfileImagePreview) {
+        URL.revokeObjectURL(pendingProfileImagePreview)
+      }
+      setPendingProfileImageFile(null)
+      setPendingProfileImagePreview(null)
+
+      toast({
+        title: "Changes saved successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      })
+      setIsEditing(false)
+      return true
+    } catch (error) {
+      console.error("Error saving data:", error)
+      toast({
+        title: "Error saving data",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      })
+      return false
+    } finally {
+      setSaving(false)
+    }
   }
 
   // Auto-exit edit mode if no changes (optional improvement)
@@ -134,15 +174,35 @@ export const PersonalProfile = () => {
 
   return (
     <StudentProfileLayout>
-      <Box maxW="5xl" mx="auto">
+      <Box maxW="5xl" mx="auto" position="relative" pt={8}>
+        {!isEditing && (
+            <Box position="absolute" top={0} right={0} zIndex={2}>
+                <CircularProgress 
+                    value={completionPercent} 
+                    color={completionPercent === 100 ? "green.400" : "#d4a960"} 
+                    size="60px"
+                    thickness="10px"
+                    trackColor="gray.100"
+                >
+                    <CircularProgressLabel fontSize="sm" fontWeight="bold" color="gray.600">
+                        {completionPercent}%
+                    </CircularProgressLabel>
+                </CircularProgress>
+            </Box>
+        )}
+
         <PersonalInformationForm
-            data={data}
-            onUpdate={handleUpdate}
-            isEditing={isEditing}
-            mode="student"
-            majorOptions={majorOptions}
-            minorOptions={minorOptions}
-            specializationOptions={specializationOptions}
+          data={data}
+          onUpdate={handleUpdate}
+          isEditing={isEditing}
+          mode="student"
+          majorOptions={majorOptions}
+          minorOptions={minorOptions}
+          specializationOptions={specializationOptions}
+          schoolOptions={schoolOptions}
+          programOptions={programOptions}
+          pendingProfileImagePreview={pendingProfileImagePreview}
+          onProfileImageSelect={handleProfileImageSelect}
         />
         
         <HStack justifyContent="flex-end" mt={8} pb={10}>

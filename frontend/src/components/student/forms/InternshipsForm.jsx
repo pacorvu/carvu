@@ -24,13 +24,18 @@
  * - POST /api/student/profile/internships
  */
 
-import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea } from "@chakra-ui/react"
+import { Box, VStack, Heading, Button, HStack, Input, SimpleGrid, IconButton, Text, Card, CardBody, Collapse, Flex, Textarea, useToast } from "@chakra-ui/react"
 import { Field } from "../../ui/field"
 import { useState } from "react"
 import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa"
+import { useAuth } from "../../../context/AuthContext"
+import { StudentProfileService } from "../../../services/studentProfile.service"
 
 export const InternshipsForm = ({ data = {}, onUpdate, isEditing = false }) => {
   const items = Array.isArray(data) ? data : (data.internships || [])
+  const toast = useToast()
+  const { user } = useAuth()
+  const usn = user?.usn
 
   const handleChange = (index, field, value) => {
     const newItems = [...items]
@@ -61,6 +66,33 @@ export const InternshipsForm = ({ data = {}, onUpdate, isEditing = false }) => {
   const handleDelete = (index) => {
     const newItems = items.filter((_, i) => i !== index)
     onUpdate(newItems)
+  }
+
+  const handleUpload = async (index, file) => {
+    if (!file || !usn) return
+    try {
+      const result = await StudentProfileService.uploadFile(usn, file, { folder: "internships" })
+      const url = result?.url || result?.path
+      if (url) {
+        const newItems = [...items]
+        newItems[index] = { ...newItems[index], proofDocument: url }
+        onUpdate(newItems)
+        toast({
+          status: "success",
+          description: "File uploaded",
+          duration: 3000,
+          isClosable: true
+        })
+      }
+    } catch (e) {
+      console.error("Error uploading internship file:", e)
+      toast({
+        status: "error",
+        description: "File upload failed",
+        duration: 4000,
+        isClosable: true
+      })
+    }
   }
 
   return (
@@ -215,8 +247,22 @@ const InternshipItem = ({ index, item, onChange, onDelete, isEditing }) => {
                             placeholder="e.g. React, Node.js"
                         />
                     </Field>
-                    <Field label="Proof Document Link">
+                    <Field label="Proof Document">
+                        {isEditing && (
+                          <Input
+                            type="file"
+                            p={1}
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                            onChange={async (e) => {
+                              const file = e.target.files && e.target.files[0]
+                              if (!file) return
+                              await handleUpload(index, file)
+                            }}
+                            variant="outline"
+                          />
+                        )}
                         <Input 
+                            mt={2}
                             value={item.proofDocument || ""} 
                             onChange={(e) => onChange(index, "proofDocument", e.target.value)} 
                             variant="flushed"

@@ -59,6 +59,7 @@ const JobOffers = () => {
   const baseColumns = [
     { id: 'usn', label: 'USN' },
     { id: 'student', label: 'Student' },
+    { id: 'batch', label: 'Batch' },
     { id: 'company', label: 'Company' },
     { id: 'designation', label: 'Designation' },
     { id: 'job_type', label: 'Job Type' },
@@ -73,6 +74,7 @@ const JobOffers = () => {
       columns: [
         { id: 'usn', label: 'USN' },
         { id: 'student', label: 'Student' },
+        { id: 'batch', label: 'Batch' },
         { id: 'company', label: 'Company' },
         { id: 'designation', label: 'Designation' },
         { id: 'job_type', label: 'Job Type' },
@@ -89,6 +91,7 @@ const JobOffers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedJobType, setSelectedJobType] = useState('');
+  const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedSchools, setSelectedSchools] = useState([]);
   const [ctcSort, setCtcSort] = useState('none');
 
@@ -455,6 +458,7 @@ const JobOffers = () => {
     setSearchQuery('');
     setSelectedCompany('');
     setSelectedJobType('');
+    setSelectedBatch('');
     setSelectedSchools([]);
   };
 
@@ -467,6 +471,7 @@ const JobOffers = () => {
     const exportData = filteredOffers.map(offer => ({
       USN: offer.usn,
       "Student Name": offer.student_name,
+      Batch: offer.batch,
       Company: offer.company_name,
       Designation: offer.designation,
       "Job Type": offer.job_type,
@@ -492,6 +497,7 @@ const JobOffers = () => {
   // Unique companies for dropdown
   const companies = [...new Set(offers.map(o => o.company_name).filter(Boolean))];
   const jobTypes = [...new Set(offers.map(o => o.job_type).filter(Boolean))];
+  const batches = [...new Set(offers.map(o => o.batch).filter(Boolean))].sort((a, b) => b - a);
 
   // Search Priority Logic
   const getMatchScore = (offer, query) => {
@@ -553,14 +559,15 @@ const JobOffers = () => {
         
         const matchesCompany = selectedCompany ? offer.company_name === selectedCompany : true;
         const matchesJobType = selectedJobType ? offer.job_type === selectedJobType : true;
+        const matchesBatch = selectedBatch ? String(offer.batch) === String(selectedBatch) : true;
         const matchesSchool = selectedSchools.length > 0 ? selectedSchools.some(selected => {
           const offerSchool = offer.school ? offer.school.trim() : 'Other';
           return offerSchool === selected;
         }) : true;
         
-        return matchesSearch && matchesCompany && matchesJobType && matchesSchool;
+        return matchesSearch && matchesCompany && matchesJobType && matchesBatch && matchesSchool;
       }),
-    [offers, searchQuery, selectedCompany, selectedJobType, selectedSchools]
+    [offers, searchQuery, selectedCompany, selectedJobType, selectedBatch, selectedSchools]
   );
 
   const filteredOffers = useMemo(() => {
@@ -698,9 +705,24 @@ const JobOffers = () => {
                 {jobTypes.map(j => <option key={j} value={j}>{j}</option>)}
               </Select>
               
+              <Select 
+                placeholder="All Batches" 
+                maxW="150px" 
+                bg="white"
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                _focus={{ borderColor: "blue.500" }}
+                size="md"
+              >
+                {batches.map(b => <option key={b} value={b}>{b}</option>)}
+              </Select>
+              
               <Spacer />
               
-              {(searchQuery || selectedCompany || selectedJobType || selectedSchools.length > 0) && (
+              {(searchQuery || selectedCompany || selectedJobType || selectedBatch || selectedSchools.length > 0) && (
                 <Button 
                   size="sm" 
                   variant="ghost" 
@@ -768,6 +790,7 @@ const JobOffers = () => {
                 <Tr>
                   {visibleColumns.includes('usn') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">USN</Th>}
                   {visibleColumns.includes('student') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Student</Th>}
+                  {visibleColumns.includes('batch') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Batch</Th>}
                   {visibleColumns.includes('company') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Company</Th>}
                   {visibleColumns.includes('designation') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Designation</Th>}
                   {visibleColumns.includes('job_type') && <Th color="gray.600" fontSize="xs" textTransform="uppercase" py={5} letterSpacing="wider">Job Type</Th>}
@@ -827,6 +850,11 @@ const JobOffers = () => {
                           ) : (
                             offer.student_name || '-'
                           )}
+                        </Td>
+                      )}
+                      {visibleColumns.includes('batch') && (
+                        <Td fontSize="sm" color="gray.600">
+                          {offer.batch || '-'}
                         </Td>
                       )}
                       {visibleColumns.includes('company') && (

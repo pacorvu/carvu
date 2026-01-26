@@ -81,6 +81,15 @@ const updateAcademics = async (req, res) => {
                             value = null;
                         }
                     }
+
+                    // Handle jsonb fields
+                    if (key === 'provisional_result_upload_links') {
+                        if (Array.isArray(value)) {
+                            value = JSON.stringify(value);
+                        } else if (!value) {
+                            value = JSON.stringify([]);
+                        }
+                    }
                     
                     filteredItem[key] = value;
                 }

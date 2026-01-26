@@ -27,6 +27,8 @@ export const refreshAccessToken = async () => {
       credentials: 'include'
     });
     if (!resp.ok) {
+      // If refresh fails (401), dispatch logout event so AuthContext can handle it
+      window.dispatchEvent(new Event('auth:logout'));
       return null;
     }
     const data = await resp.json();
@@ -34,6 +36,7 @@ export const refreshAccessToken = async () => {
       setAccessToken(data.access);
       return data.access;
     }
+    window.dispatchEvent(new Event('auth:logout'));
     return null;
   } catch (e) {
     console.error('Token refresh failed:', e);

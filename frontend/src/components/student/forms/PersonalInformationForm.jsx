@@ -14,7 +14,10 @@ import {
   useColorModeValue,
   Avatar,
   Flex,
+  IconButton,
 } from "@chakra-ui/react";
+import { useAuth } from "../../../context/AuthContext";
+import { FaEdit } from "react-icons/fa";
 
 const Section = ({ title, bg, children }) => (
   <Box
@@ -165,6 +168,10 @@ export const PersonalInformationForm = ({
   majorOptions = [],
   minorOptions = [],
   specializationOptions = [],
+  schoolOptions = [],
+  programOptions = [],
+  pendingProfileImagePreview,
+  onProfileImageSelect,
 }) => {
   const bg = "white"; // Clean white card
   const formData = data || {};
@@ -174,6 +181,9 @@ export const PersonalInformationForm = ({
   const focusBorderColor = "#d4a960";
   
   const isStudent = mode === "student";
+  const { user } = useAuth();
+  const usn = user?.usn;
+  const fileInputRef = React.useRef(null);
 
   // Filter options based on selected Program ID
   const filteredSpecializations = React.useMemo(() => {
@@ -240,6 +250,7 @@ export const PersonalInformationForm = ({
       <Section title="Profile Details" bg={bg}>
         <Flex direction={{ base: "column", md: "row" }} align="center" gap={10}>
           <Box 
+            position="relative"
             p={2} 
             borderRadius="full" 
             borderWidth="1px" 
@@ -250,10 +261,46 @@ export const PersonalInformationForm = ({
             <Avatar 
               size="2xl" 
               name={formData.fullName} 
-              src={formData.profileImage} 
+              src={pendingProfileImagePreview || formData.profileImage} 
               borderWidth="4px"
               borderColor="gray.50"
             />
+            {isEditing && (
+              <>
+                <IconButton
+                  icon={<FaEdit />}
+                  size="sm"
+                  aria-label="Change profile image"
+                  position="absolute"
+                  bottom={2}
+                  right={2}
+                  borderRadius="full"
+                  bg="#d4a960"
+                  color="#20343c"
+                  _hover={{ bg: "#c39850" }}
+                  boxShadow="md"
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                />
+                <Input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".jpg,.jpeg,.png,.webp"
+                  display="none"
+                  onChange={async (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    if (onProfileImageSelect) {
+                      onProfileImageSelect(file);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </>
+            )}
           </Box>
 
           <VStack flex={1} w="full" spacing={6} align="stretch">
@@ -286,6 +333,46 @@ export const PersonalInformationForm = ({
                   fontSize="lg"
                   fontFamily="monospace"
                   isDisabled={true}
+                  _disabled={{ opacity: 1, bg: "transparent", px: 0, color: "gray.900", cursor: "default" }}
+                />
+              </FormControl>
+            </SimpleGrid>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
+              <FormControl>
+                <FormLabel fontSize="sm" fontWeight="medium" color="gray.500">
+                  Current Year
+                </FormLabel>
+                <Input
+                  value={formData.currentYear ?? ""}
+                  variant="unstyled"
+                  fontSize="lg"
+                  isDisabled={true}
+                  _disabled={{ opacity: 1, bg: "transparent", px: 0, color: "gray.900", cursor: "default" }}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize="sm" fontWeight="medium" color="gray.500">
+                  Current Semester
+                </FormLabel>
+                <Input
+                  value={formData.currentSemester ?? ""}
+                  variant="unstyled"
+                  fontSize="lg"
+                  isDisabled={true}
+                  _disabled={{ opacity: 1, bg: "transparent", px: 0, color: "gray.900", cursor: "default" }}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize="sm" fontWeight="medium" color="gray.500">
+                  Section
+                </FormLabel>
+                <Input
+                  value={formData.section || ""}
+                  onChange={(e) => handleChange({ section: (e.target.value || '').toLowerCase() })}
+                  variant={inputVariant}
+                  focusBorderColor={focusBorderColor}
+                  px={inputPadding}
+                  isDisabled={!isEditing}
                   _disabled={{ opacity: 1, bg: "transparent", px: 0, color: "gray.900", cursor: "default" }}
                 />
               </FormControl>
@@ -394,18 +481,19 @@ export const PersonalInformationForm = ({
 
       <Section title="Academic Details" bg={bg}>
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8}>
-          <FormControl>
-            <FormLabel fontWeight="semibold" color="gray.600">School Name</FormLabel>
-            <Input
-              value={formData.schoolName || ""}
-              onChange={(e) => handleChange({ schoolName: e.target.value })}
-              variant={inputVariant}
-              focusBorderColor={focusBorderColor}
-              px={inputPadding}
-              isDisabled={!isEditing}
-              _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
-            />
-          </FormControl>
+          <SelectFromOptions
+            label="School Name"
+            valueKey="schoolName"
+            idKey="schoolId"
+            options={schoolOptions}
+            listId="school-options"
+            isEnabled={isEditing}
+            formData={formData}
+            handleChange={handleChange}
+            inputVariant={inputVariant}
+            focusBorderColor={focusBorderColor}
+            inputPadding={inputPadding}
+          />
 
           <FormControl>
             <FormLabel fontWeight="semibold" color="gray.600">Year of Joining</FormLabel>
@@ -421,18 +509,31 @@ export const PersonalInformationForm = ({
             />
           </FormControl>
 
-          <FormControl>
-            <FormLabel fontWeight="semibold" color="gray.600">Program</FormLabel>
-            <Input
-              value={formData.programName || ""}
-              onChange={(e) => handleChange({ programName: e.target.value })}
-              variant={inputVariant}
-              focusBorderColor={focusBorderColor}
-              px={inputPadding}
-              isDisabled={!isEditing}
-              _disabled={{ opacity: 1, color: "gray.800", cursor: "default" }}
-            />
-          </FormControl>
+          <SelectFromOptions
+            label="Program"
+            valueKey="programName"
+            idKey="programId"
+            options={programOptions}
+            listId="program-options"
+            isEnabled={isEditing}
+            formData={formData}
+            handleChange={(updates) => {
+                const programId = updates.programId;
+                const program = programOptions.find(p => p.id === programId);
+                
+                if (program && program.school_name) {
+                    updates.schoolName = program.school_name;
+                    // Try to find schoolId if available
+                    const school = schoolOptions.find(s => s.name === program.school_name);
+                    if (school) updates.schoolId = school.id;
+                }
+                
+                handleChange(updates);
+            }}
+            inputVariant={inputVariant}
+            focusBorderColor={focusBorderColor}
+            inputPadding={inputPadding}
+          />
 
           {isStudent ? (
             <SelectFromOptions

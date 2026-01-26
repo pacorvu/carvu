@@ -50,119 +50,7 @@ import { saveAs } from 'file-saver';
 import AdminLayout from '../../components/AdminLayout';
 import { PlacementService } from '../../services/placement.service';
 
-const STATIC_PLACEMENT_OVERVIEW_ROWS = [
-  {
-    school: 'SODI (691)',
-    course: 'B Des',
-    year: '1st Year',
-    batchStrength: 210,
-    mode: 'Foundation',
-    studentsTrained: '-',
-    optedIn: '-',
-    currentPlacement: '-'
-  },
-  {
-    school: 'SODI (691)',
-    course: 'B Des',
-    year: '2nd Year',
-    batchStrength: 206,
-    mode: 'Foundation',
-    studentsTrained: '-',
-    optedIn: '-',
-    currentPlacement: '-'
-  },
-  {
-    school: 'SODI (691)',
-    course: 'B Des',
-    year: '3rd Year',
-    batchStrength: 92,
-    mode: 'Summer Internship',
-    studentsTrained: '-',
-    optedIn: 92,
-    currentPlacement: '-'
-  },
-  {
-    school: 'SODI (691)',
-    course: 'B Des',
-    year: '4th Year',
-    batchStrength: 113,
-    mode: 'Capstone & Final Placement',
-    studentsTrained: 'Yes',
-    optedIn: 89,
-    currentPlacement: 39
-  },
-  {
-    school: 'SODI (691)',
-    course: 'M Des',
-    year: '1st Year',
-    batchStrength: 37,
-    mode: 'Summer Internship',
-    studentsTrained: '-',
-    optedIn: 37,
-    currentPlacement: '-'
-  },
-  {
-    school: 'SODI (691)',
-    course: 'M Des',
-    year: '2nd Year',
-    batchStrength: 33,
-    mode: 'Capstone & Final Placement',
-    studentsTrained: 'Yes',
-    optedIn: 32,
-    currentPlacement: 10
-  },
-  {
-    school: 'SOB (520)',
-    course: 'BBA',
-    year: '3rd Year',
-    batchStrength: 180,
-    mode: 'Summer Internship',
-    studentsTrained: 'Yes',
-    optedIn: 160,
-    currentPlacement: 70
-  },
-  {
-    school: 'SOB (520)',
-    course: 'BBA',
-    year: '4th Year',
-    batchStrength: 170,
-    mode: 'Capstone & Final Placement',
-    studentsTrained: 'Yes',
-    optedIn: 150,
-    currentPlacement: 90
-  },
-  {
-    school: 'SOET (430)',
-    course: 'B Tech',
-    year: '3rd Year',
-    batchStrength: 200,
-    mode: 'Summer Internship',
-    studentsTrained: 'Yes',
-    optedIn: 180,
-    currentPlacement: 80
-  },
-  {
-    school: 'SOET (430)',
-    course: 'B Tech',
-    year: '4th Year',
-    batchStrength: 230,
-    mode: 'Capstone & Final Placement',
-    studentsTrained: 'Yes',
-    optedIn: 210,
-    currentPlacement: 120
-  }
-];
-
-const salaryOverview = {
-  school: 'Overall',
-  max: 8.5,
-  average: 6.25,
-  median: 6,
-  min: 5.5,
-  paidInternships: 49
-};
-
-const PlacementOverviewTab = ({ rows }) => {
+const PlacementOverviewTab = ({ rows, salaryStats, academicYears, selectedYear, onYearChange }) => {
   const headerBg = '#f9e4a2';
   const headerRowBg = '#fbeec8';
   const dataRowBg = '#e9f4dd';
@@ -179,11 +67,18 @@ const PlacementOverviewTab = ({ rows }) => {
   ];
 
   const sortedRows = [...rows].sort((a, b) => {
+    // 1. Sort by School
     const schoolCompare = (a.school || '').localeCompare(b.school || '');
     if (schoolCompare !== 0) return schoolCompare;
+    
+    // 2. Sort by Course (Program)
     const courseCompare = (a.course || '').localeCompare(b.course || '');
     if (courseCompare !== 0) return courseCompare;
-    return (a.year || '').localeCompare(b.year || '');
+
+    // 3. Sort by Current Year (Ascending: 1st, 2nd, 3rd...)
+    const yearA = a.currentYear || 0;
+    const yearB = b.currentYear || 0;
+    return yearA - yearB;
   });
 
   const schoolColors = {};
@@ -204,6 +99,25 @@ const PlacementOverviewTab = ({ rows }) => {
   };
 
   return (
+    <Box>
+      <Flex justify="flex-end" mb={4} align="center">
+        <HStack>
+          <Text fontSize="sm" fontWeight="bold" color="gray.600">Academic Year:</Text>
+          <Select 
+            size="sm" 
+            width="150px" 
+            value={selectedYear} 
+            onChange={(e) => onYearChange(e.target.value)}
+            bg="white"
+            borderColor="gray.300"
+          >
+            <option value="">All Years</option>
+            {academicYears.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </Select>
+        </HStack>
+      </Flex>
       <Box
         bg="white"
         shadow="sm"
@@ -236,7 +150,7 @@ const PlacementOverviewTab = ({ rows }) => {
                 borderColor={border}
                 textAlign="center"
               >
-                Current Academic Year
+                Current Year
               </Th>
               <Th
                 fontSize="xs"
@@ -260,7 +174,7 @@ const PlacementOverviewTab = ({ rows }) => {
                 borderColor={border}
                 textAlign="center"
               >
-                Students Trained/Polished
+                is_eligible
               </Th>
               <Th
                 fontSize="xs"
@@ -268,7 +182,7 @@ const PlacementOverviewTab = ({ rows }) => {
                 borderColor={border}
                 textAlign="center"
               >
-                Student Opted In
+                opt in
               </Th>
               <Th
                 fontSize="xs"
@@ -294,6 +208,10 @@ const PlacementOverviewTab = ({ rows }) => {
               const isFirstOfSchool =
                 index === 0 ||
                 (sortedRows[index - 1].school || 'Unknown') !== key;
+              
+              const stats = salaryStats && salaryStats[key] ? salaryStats[key] : {
+                 max: 0, min: 0, avg: 0, median: 0, paidInternships: 0
+              };
 
               return (
                 <Tr
@@ -323,7 +241,7 @@ const PlacementOverviewTab = ({ rows }) => {
                     borderColor={border}
                     textAlign="center"
                   >
-                    {row.year}
+                    {row.currentYearLabel}
                   </Td>
                   <Td
                     fontSize="sm"
@@ -372,14 +290,35 @@ const PlacementOverviewTab = ({ rows }) => {
                       color="gray.800"
                       borderColor={border}
                       textAlign="center"
+                      verticalAlign="middle"
+                      p={4}
                     >
-                      <Box textAlign="center">
-                        <Text>Max Salary- {salaryOverview.max}</Text>
-                        <Text>Average Salary- {salaryOverview.average}</Text>
-                        <Text>Median salary-{salaryOverview.median}</Text>
-                        <Text>Minimum Salary- {salaryOverview.min}</Text>
-                        <Text>Paid Internship- {salaryOverview.paidInternships}</Text>
-                      </Box>
+                      <SimpleGrid columns={2} spacingY={3} spacingX={4} textAlign="left" minW="180px">
+                        <Box>
+                          <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Max</Text>
+                          <Text fontWeight="bold" fontSize="md" color="green.600">{stats.max} LPA</Text>
+                        </Box>
+                        <Box>
+                          <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Avg</Text>
+                          <Text fontWeight="bold" fontSize="md" color="blue.600">{stats.avg} LPA</Text>
+                        </Box>
+                        <Box>
+                          <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Median</Text>
+                          <Text fontWeight="bold" fontSize="md" color="purple.600">{stats.median} LPA</Text>
+                        </Box>
+                        <Box>
+                          <Text fontSize="xs" color="gray.500" textTransform="uppercase" letterSpacing="wide">Min</Text>
+                          <Text fontWeight="bold" fontSize="md" color="orange.600">{stats.min} LPA</Text>
+                        </Box>
+                        <Box gridColumn="span 2" borderTop="1px dashed" borderColor="gray.200" pt={2} mt={1}>
+                           <HStack justify="space-between">
+                              <Text fontSize="xs" color="gray.500" fontWeight="medium">Paid Internships</Text>
+                              <Badge colorScheme="teal" variant="solid" borderRadius="full" px={2}>
+                                {stats.paidInternships}
+                              </Badge>
+                           </HStack>
+                        </Box>
+                      </SimpleGrid>
                     </Td>
                   )}
                 </Tr>
@@ -388,15 +327,267 @@ const PlacementOverviewTab = ({ rows }) => {
           </Tbody>
         </Table>
       </Box>
+    </Box>
   );
 };
+
+const StudentEligibilityTab = () => {
+  const [policies, setPolicies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ year: '', school: '' });
+  const [modifiedPolicies, setModifiedPolicies] = useState({}); // Map of id -> policy
+  const toast = useToast();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const policiesData = await PlacementService.getAllPolicies();
+      setPolicies(policiesData);
+      setModifiedPolicies({});
+    } catch (error) {
+      toast({ title: 'Error fetching data', status: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSyncPolicies = async () => {
+    try {
+      setLoading(true);
+      const res = await PlacementService.syncPolicies();
+      toast({ title: 'Sync Successful', description: res.message, status: 'success' });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Sync Failed', description: error.message, status: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTogglePolicy = (policy, field) => {
+    const updatedPolicy = {
+        ...policy,
+        [field]: !policy[field]
+    };
+    
+    // Update local state
+    setPolicies(prev => prev.map(p => p.id === policy.id ? updatedPolicy : p));
+    
+    // Track modification
+    setModifiedPolicies(prev => ({
+        ...prev,
+        [policy.id]: updatedPolicy
+    }));
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+        setLoading(true);
+        const updates = Object.values(modifiedPolicies);
+        if (updates.length === 0) {
+            toast({ title: 'No changes to save', status: 'info' });
+            setLoading(false);
+            return;
+        }
+
+        // Process updates in parallel
+        await Promise.all(updates.map(p => PlacementService.upsertPolicy(p)));
+        
+        toast({ title: 'Changes saved successfully', status: 'success' });
+        setModifiedPolicies({});
+        // No need to refetch if we trust our local updates, but refetching is safer
+        // fetchData(); 
+    } catch (error) {
+        toast({ title: 'Error saving changes', description: error.message, status: 'error' });
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // Extract unique values for filters
+  const uniqueYears = [...new Set(policies.map(p => p.joining_year))].sort().reverse();
+  const uniqueSchools = [...new Set(policies.map(p => p.school_name))].sort();
+
+  // Set default year filter if not set
+  useEffect(() => {
+    if (!filters.year && uniqueYears.length > 0) {
+        setFilters(prev => ({ ...prev, year: uniqueYears[0].toString() }));
+    }
+  }, [uniqueYears, filters.year]);
+
+  // Helper to get consistent color for school
+  const getSchoolColor = (schoolName) => {
+    if (!schoolName) return 'white';
+    // Use softer, more pastel colors similar to dashboard/overview charts
+    const colors = [
+        '#E3F2FD', // Light Blue
+        '#E8F5E9', // Light Green
+        '#F3E5F5', // Light Purple
+        '#FFF3E0', // Light Orange
+        '#FFEBEE', // Light Red
+        '#E0F2F1', // Light Teal
+        '#E0F7FA', // Light Cyan
+        '#FCE4EC', // Light Pink
+        '#F1F8E9', // Light Lime
+        '#FFF8E1'  // Light Amber
+    ];
+    let hash = 0;
+    for (let i = 0; i < schoolName.length; i++) {
+        hash = schoolName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
+  // Filter policies
+  const filteredPolicies = policies.filter(p => {
+      return (
+          (!filters.year || p.joining_year.toString() === filters.year) &&
+          (!filters.school || p.school_name === filters.school)
+      );
+  });
+
+  return (
+    <Box p={4} bg="white" borderRadius="xl" shadow="sm" border="1px" borderColor="gray.100">
+       <HStack justify="space-between" mb={6}>
+         <Heading size="md">placement eligbility track</Heading>
+         <HStack>
+             <Select 
+                w="150px" 
+                value={filters.year}
+                onChange={e => setFilters(prev => ({ ...prev, year: e.target.value }))}
+             >
+                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
+             </Select>
+             <Select 
+                placeholder="Filter School" 
+                w="200px" 
+                value={filters.school}
+                onChange={e => setFilters(prev => ({ ...prev, school: e.target.value }))}
+             >
+                 {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+             </Select>
+             <Button colorScheme="purple" onClick={handleSyncPolicies} isLoading={loading}>
+               Sync All Programs
+             </Button>
+         </HStack>
+       </HStack>
+
+       {/* Table Section */}
+       <Box overflowX="auto" mb={4}>
+         <Table variant="simple" size="sm">
+           <Thead bg="gray.50">
+             <Tr>
+               <Th>School</Th>
+               <Th>Program</Th>
+               <Th>Joining Year</Th>
+               <Th textAlign="center">Immersion</Th>
+               <Th textAlign="center">Internship</Th>
+               <Th textAlign="center">Capstone</Th>
+               <Th textAlign="center">Placement</Th>
+               <Th textAlign="center">is_alumni</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {filteredPolicies.map(policy => (
+              <Tr key={policy.id} bg={getSchoolColor(policy.school_name)}>
+                <Td>{policy.school_name}</Td>
+                <Td>{policy.program_name}</Td>
+                <Td>{policy.joining_year}</Td>
+                <Td textAlign="center">
+                  <Button 
+                    size="xs" 
+                    colorScheme={policy.summer_immersion ? 'green' : 'red'}
+                    onClick={() => handleTogglePolicy(policy, 'summer_immersion')}
+                    variant="solid"
+                    width="60px"
+                  >
+                    {policy.summer_immersion ? 'Yes' : 'No'}
+                  </Button>
+                </Td>
+                <Td textAlign="center">
+                  <Button 
+                    size="xs" 
+                    colorScheme={policy.summer_internship ? 'green' : 'red'}
+                    onClick={() => handleTogglePolicy(policy, 'summer_internship')}
+                    variant="solid"
+                    width="60px"
+                  >
+                    {policy.summer_internship ? 'Yes' : 'No'}
+                  </Button>
+                </Td>
+                <Td textAlign="center">
+                  <Button 
+                    size="xs" 
+                    colorScheme={policy.capstone ? 'green' : 'red'}
+                    onClick={() => handleTogglePolicy(policy, 'capstone')}
+                    variant="solid"
+                    width="60px"
+                  >
+                    {policy.capstone ? 'Yes' : 'No'}
+                  </Button>
+                </Td>
+                <Td textAlign="center">
+                  <Button 
+                    size="xs" 
+                    colorScheme={policy.placement ? 'green' : 'red'}
+                    onClick={() => handleTogglePolicy(policy, 'placement')}
+                    variant="solid"
+                    width="60px"
+                  >
+                    {policy.placement ? 'Yes' : 'No'}
+                  </Button>
+                </Td>
+                <Td textAlign="center">
+                  <Button 
+                    size="xs" 
+                    colorScheme={policy.alumni ? 'green' : 'red'}
+                    onClick={() => handleTogglePolicy(policy, 'alumni')}
+                    variant="solid"
+                    width="60px"
+                  >
+                    {policy.alumni ? 'Yes' : 'No'}
+                  </Button>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+         </Table>
+       </Box>
+
+       {/* Save Button */}
+       <Flex justify="flex-end">
+           <Button 
+            colorScheme="blue" 
+            size="lg" 
+            onClick={handleSaveChanges}
+            isDisabled={Object.keys(modifiedPolicies).length === 0}
+            isLoading={loading}
+           >
+               Save Changes
+           </Button>
+       </Flex>
+    </Box>
+  );
+};
+
 
 const Students = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [students, setStudents] = useState([]);
-  const [overviewRows, setOverviewRows] = useState(STATIC_PLACEMENT_OVERVIEW_ROWS);
   const [loading, setLoading] = useState(true);
+  
+  // Placement Overview State
+  const [placementOverviewData, setPlacementOverviewData] = useState([]);
+  const [placementSalaryStats, setPlacementSalaryStats] = useState({});
+  const [availableAcademicYears, setAvailableAcademicYears] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('');
@@ -411,6 +602,8 @@ const Students = () => {
     { id: 'specialization', label: 'Specialization' },
     { id: 'email', label: 'Email' },
     { id: 'contact', label: 'Contact' },
+    { id: 'student_is_eligible', label: 'is_eligible' },
+    { id: 'opt_in', label: 'opt in' },
     { id: 'placement', label: 'Placement' },
   ];
   const [visibleColumns, setVisibleColumns] = useState(baseColumns.map(c => c.id));
@@ -425,6 +618,10 @@ const Students = () => {
     profileImage: true,
     resume: false // Placeholder for future implementation
   });
+
+  const handleStudentUpdate = (updatedStudent) => {
+    setStudents(prev => prev.map(s => s.usn === updatedStudent.usn ? { ...s, ...updatedStudent } : s));
+  };
 
   // Column groups from database schema (simplified for list view)
   const columnGroups = [
@@ -570,44 +767,62 @@ const Students = () => {
 
   useEffect(() => {
     fetchStudents();
+    fetchPlacementOverview();
   }, []);
+
+  useEffect(() => {
+    fetchPlacementOverview();
+  }, [selectedAcademicYear]);
+
+  const fetchPlacementOverview = async () => {
+    try {
+      const data = await PlacementService.getPlacementOverview(selectedAcademicYear);
+      setPlacementOverviewData(data.rows || []);
+      setPlacementSalaryStats(data.schoolOverview || {});
+      if (data.academicYears && data.academicYears.length > 0) {
+         setAvailableAcademicYears(data.academicYears);
+      }
+    } catch (error) {
+      console.error("Error fetching placement overview:", error);
+      toast({
+        title: 'Error fetching placement overview',
+        description: error.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const calculateMode = (graduationLevel, year) => {
+    if (!year) return '-';
+    // Graduation level might be 'UG' or 'PG' or undefined
+    const level = graduationLevel ? graduationLevel.toUpperCase() : '';
+    
+    if (level === 'UG') {
+      if (year === 1) return 'Foundation';
+      if (year === 2) return 'Summer Internship';
+      if (year >= 3) return 'Capstone & Placements';
+    } else if (level === 'PG') {
+      if (year === 1) return 'Foundation';
+      if (year >= 2) return 'Capstone & Placement';
+    }
+    return '-';
+  };
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
       const data = await PlacementService.getAllStudents();
       setStudents(data);
-      const groups = {};
-      data.forEach((student) => {
-        const school = student.school || 'Unknown School';
-        const course = student.program || 'Unknown Program';
-        const yearNumber = student.current_year || null;
-        const yearLabel = yearNumber
-          ? `${yearNumber === 1 ? '1st' : yearNumber === 2 ? '2nd' : yearNumber === 3 ? '3rd' : `${yearNumber}th`} Year`
-          : '-';
-        const key = `${school}||${course}||${yearLabel}`;
-        if (!groups[key]) {
-          groups[key] = {
-            school,
-            course,
-            year: yearLabel,
-            batchStrength: 0,
-            mode: '-',
-            studentsTrained: '-',
-            optedIn: '-',
-            currentPlacement: '-',
-          };
-        }
-        groups[key].batchStrength += 1;
-      });
-      const dynamicRows = Object.values(groups);
-      if (dynamicRows.length > 0) {
-        setOverviewRows(dynamicRows);
-      } else {
-        setOverviewRows(STATIC_PLACEMENT_OVERVIEW_ROWS);
-      }
     } catch (error) {
       console.error("Error fetching students:", error);
+      toast({
+        title: 'Error fetching students',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -696,6 +911,9 @@ const Students = () => {
             case 'personal_email': value = student.email || '-'; break;
             case 'phone': value = student.phone_number || student.contact || '-'; break;
             case 'links': value = student.links ? 'Available' : '-'; break;
+
+            case 'student_is_eligible': value = student.student_is_eligible === true ? 'Yes' : 'No'; break;
+            case 'opt_in': value = student.opt_in === true ? 'Yes' : 'No'; break;
 
             // Academics
             case 'latest_academic_year': value = student.latest_academic_year || '-'; break;
@@ -844,6 +1062,7 @@ const Students = () => {
             <TabList>
               <Tab>View All Students</Tab>
               <Tab>Placement Overview</Tab>
+              <Tab>placement track</Tab>
             </TabList>
             <TabPanels>
               <TabPanel px={0}>
@@ -1001,6 +1220,16 @@ const Students = () => {
                             Contact
                           </Th>
                         )}
+                        {visibleColumns.includes('student_is_eligible') && (
+                          <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>
+                            is_eligible
+                          </Th>
+                        )}
+                        {visibleColumns.includes('opt_in') && (
+                          <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>
+                            opt in
+                          </Th>
+                        )}
                         {visibleColumns.includes('placement') && (
                           <Th color="white" fontSize="xs" textTransform="uppercase" py={4}>
                             Placement
@@ -1097,6 +1326,16 @@ const Students = () => {
                             {visibleColumns.includes('contact') && (
                               <Td fontSize="sm" color="gray.600">
                                 {student.contact || '-'}
+                              </Td>
+                            )}
+                            {visibleColumns.includes('student_is_eligible') && (
+                              <Td fontSize="sm" color="gray.600">
+                                {student.student_is_eligible === true ? 'Yes' : 'No'}
+                              </Td>
+                            )}
+                            {visibleColumns.includes('opt_in') && (
+                              <Td fontSize="sm" color="gray.600">
+                                {student.opt_in === true ? 'Yes' : 'No'}
                               </Td>
                             )}
                             {visibleColumns.includes('placement') && (
@@ -1578,7 +1817,16 @@ const Students = () => {
                 )}
               </TabPanel>
               <TabPanel px={0}>
-                <PlacementOverviewTab rows={overviewRows} />
+                <PlacementOverviewTab 
+                  rows={placementOverviewData} 
+                  salaryStats={placementSalaryStats}
+                  academicYears={availableAcademicYears}
+                  selectedYear={selectedAcademicYear}
+                  onYearChange={setSelectedAcademicYear}
+                />
+              </TabPanel>
+              <TabPanel px={0}>
+                <StudentEligibilityTab students={students} onUpdate={handleStudentUpdate} />
               </TabPanel>
             </TabPanels>
           </Tabs>

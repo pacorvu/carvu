@@ -92,7 +92,15 @@ const getStudentProcess = async (req, res) => {
     const { usn } = req.params;
     
     // Authorization check
-    if (req.user.usn !== usn && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    const userRole = req.user.role_name || req.user.role;
+    const normalizedRole = String(userRole || '').toLowerCase().trim();
+    const allowedRoles = [
+      'admin', 'superadmin', 'sudo_admin', 
+      'placement_director', 'placement_officers', 'placement_officer', 'placement officer',
+      'admin_viewer', 'spc_core', 'spc_school', 'school_dean'
+    ];
+
+    if (req.user.usn !== usn && !allowedRoles.includes(normalizedRole)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -315,6 +323,10 @@ const getAllStudents = async (req, res) => {
          COALESCE(spd.personal_email, spd.college_email) as email,
          spd.phone_number as contact,
          spd.links,
+         spd.current_year,
+         spd.is_eligible as student_is_eligible,
+         spd."Opt_In" as opt_in,
+         p.graduation_level,
          
          -- Academics (Latest Snapshot)
          (SELECT academic_year FROM student_semester_academics WHERE usn = spd.usn ORDER BY academic_year DESC, semester DESC LIMIT 1) as latest_academic_year,

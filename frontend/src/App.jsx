@@ -6,6 +6,7 @@ import { Home } from "./pages/Home"
 import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
 import { About } from "./pages/About"
+import AlumniRegistration from "./pages/AlumniRegistration"
 import { StudentDashboard } from "./pages/StudentDashboard"
 import { PersonalProfile } from "./pages/student/profile/PersonalProfile"
 import { ContactProfile } from "./pages/student/profile/ContactProfile"
@@ -103,6 +104,7 @@ const router = createBrowserRouter(
         <Route path="/about" element={<About />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/alumni/register" element={<AlumniRegistration />} />
         <Route path="/placement/forgot-password" element={<ForgotPassword />} />
       </Route>
 
@@ -129,6 +131,8 @@ const router = createBrowserRouter(
         <Route path="/student/profile/publications" element={<PublicationsProfile />} />
         <Route path="/student/profile/extra-curricular" element={<ExtraCurricularProfile />} />
         <Route path="/student/profile/other" element={<OtherExperiencesProfile />} />
+        <Route path="/student/profile/capstone" element={<StudentJobOffers />} />
+        <Route path="/student/profile/placement" element={<StudentJobOffers />} />
         <Route path="/student/profile/resume" element={<ResumeProfile />} />
         <Route path="/student/profile/preview" element={<PreviewProfile />} />
         <Route path="/student/placements/feed" element={<PlacementFeed />} />

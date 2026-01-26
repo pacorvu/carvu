@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Box, Flex, VStack, Text, Icon, Heading, HStack, Image, Button, Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverCloseButton, PopoverHeader, PopoverBody, Badge, List, ListItem } from "@chakra-ui/react"
+import { useState, useEffect } from "react"
+import { Box, Flex, VStack, Text, Icon, Heading, HStack, Image, Button, Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverCloseButton, PopoverHeader, PopoverBody, Badge, List, ListItem, Collapse } from "@chakra-ui/react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import StudentUniversalSearch from "./StudentUniversalSearch"
 import { useAuth } from "../../context/AuthContext"
@@ -34,23 +34,53 @@ import {
   FaBell
 } from "react-icons/fa"
 
-const navItems = [
-  { label: "Personal Information", path: "/student/profile/personal", icon: FaUser },
-  { label: "Contact Details", path: "/student/profile/contact", icon: FaAddressBook },
-  { label: "Parent / Guardian Details", path: "/student/profile/family", icon: FaUsers },
-  { label: "Career Overview", path: "/student/profile/career", icon: FaBriefcase },
-  { label: "Education", path: "/student/profile/education", icon: FaGraduationCap },
-  { label: "Academic Performance", path: "/student/profile/academics", icon: FaChartBar },
-  { label: "Projects", path: "/student/profile/projects", icon: FaProjectDiagram },
-  { label: "Internships", path: "/student/profile/internships", icon: FaBriefcase },
-  { label: "Summer Immersion", path: "/student/profile/summer-immersion", icon: FaBriefcase },
-  { label: "Summer Internship", path: "/student/profile/summer-internship", icon: FaBriefcase },
-  { label: "Training & Workshops", path: "/student/profile/trainings", icon: FaChalkboardTeacher },
-  { label: "Certifications", path: "/student/profile/certifications", icon: FaCertificate },
-  { label: "Publications", path: "/student/profile/publications", icon: FaBook },
-  { label: "Extra-Curricular Activities", path: "/student/profile/extra-curricular", icon: FaMedal },
-  { label: "Other Experiences", path: "/student/profile/other", icon: FaList },
-  { label: "Resume", path: "/student/profile/resume", icon: FaFileAlt },
+const navGroups = [
+  {
+    title: "Core Identity",
+    subtitle: "Locked & Mandatory",
+    icon: FaUserTie,
+    items: [
+      { label: "Personal Information", path: "/student/profile/personal", icon: FaUser },
+      { label: "Contact Details", path: "/student/profile/contact", icon: FaAddressBook },
+      { label: "Parent / Guardian Details", path: "/student/profile/family", icon: FaUsers },
+      { label: "Education", path: "/student/profile/education", icon: FaGraduationCap },
+      { label: "Academic Performance", path: "/student/profile/academics", icon: FaChartBar },
+    ],
+  },
+  {
+    title: "Growth Portfolio",
+    subtitle: "Optional & Weightage-Based",
+    icon: FaChartBar,
+    items: [
+      { label: "Projects", path: "/student/profile/projects", icon: FaProjectDiagram },
+      { label: "Internships", path: "/student/profile/internships", icon: FaBriefcase },
+      { label: "Training & Workshops", path: "/student/profile/trainings", icon: FaChalkboardTeacher },
+      { label: "Certifications", path: "/student/profile/certifications", icon: FaCertificate },
+      { label: "Publications", path: "/student/profile/publications", icon: FaBook },
+      { label: "Extra-Curricular Activities", path: "/student/profile/extra-curricular", icon: FaMedal },
+      { label: "Other Experiences", path: "/student/profile/other", icon: FaList },
+    ],
+  },
+  {
+    title: "Professional Snapshot",
+    subtitle: "Mandatory & Editable",
+    icon: FaBriefcase,
+    items: [
+      { label: "Career Overview", path: "/student/profile/career", icon: FaBriefcase },
+      { label: "Resume", path: "/student/profile/resume", icon: FaFileAlt },
+    ],
+  },
+  {
+    title: "Placement Track",
+    subtitle: "Placement-Related Activities",
+    icon: FaBriefcase,
+    items: [
+      { label: "Summer Immersion", path: "/student/profile/summer-immersion", icon: FaBriefcase },
+      { label: "Summer Internship", path: "/student/profile/summer-internship", icon: FaBriefcase },
+      { label: "Capstone", path: "/student/profile/capstone", icon: FaBriefcase },
+      { label: "Placement", path: "/student/profile/placement", icon: FaBriefcase },
+    ],
+  },
 ]
 
 export const StudentProfileLayout = ({ children }) => {
@@ -58,39 +88,123 @@ export const StudentProfileLayout = ({ children }) => {
   const navigate = useNavigate()
   const { logout } = useAuth()
   const [open, setOpen] = useState(false)
+  const [openGroups, setOpenGroups] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.sessionStorage.getItem("studentProfileOpenGroups")
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            return parsed
+          }
+        } catch {
+        }
+      }
+    }
+    return [0, 1, 2, 3]
+  })
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
 
+  const toggleGroup = (index) => {
+    setOpenGroups((prev) => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index)
+      }
+      return [...prev, index]
+    })
+  }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("studentProfileOpenGroups", JSON.stringify(openGroups))
+    }
+  }, [openGroups])
+
   const NavContent = () => (
-    <VStack align="stretch" gap={1} py={2}>
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.path || (item.label === "Personal Information" && location.pathname === "/student/profile")
-        
+    <VStack align="stretch" gap={3} py={4}>
+      {navGroups.map((group, index) => {
+        const isOpen = openGroups.includes(index)
         return (
-          <Link key={item.label} to={item.path}>
-            <Box 
-              px={6} 
-              py={3} 
+          <Box key={group.title}>
+            <Box
+              px={4}
+              py={3}
               mx={2}
               borderRadius="md"
-              bg={isActive ? "#d4a960" : "transparent"} 
-              color={isActive ? "#20343c" : "gray.600"}
-              fontWeight={isActive ? "bold" : "medium"}
+              bg="#5B7C99"
+              borderWidth={1}
+              borderColor={isOpen ? "#E5E9EC" : "#5B7C99"}
+              color="#fbfff1"
               display="flex"
               alignItems="center"
-              gap={3}
-              _hover={{ bg: isActive ? "#d4a960" : "#f0f4f8", color: "#20343c" }}
+              justifyContent="space-between"
               cursor="pointer"
               transition="all 0.2s"
+              onClick={() => toggleGroup(index)}
             >
-              <Icon as={item.icon} boxSize={4} />
-              <Text fontSize="sm" flex={1}>{item.label}</Text>
-              {isActive && <Icon as={FaChevronRight} color="#20343c" boxSize={3} />}
+              <HStack spacing={3}>
+                <Icon as={group.icon} color="#E5E9EC" boxSize={4} />
+                <Box>
+                  <Text fontSize="sm" fontWeight="semibold" color="#fbfff1">
+                    {group.title}
+                  </Text>
+                  <Text fontSize="xs" color="#E5E9EC">
+                    {group.subtitle}
+                  </Text>
+                </Box>
+              </HStack>
+              <Icon
+                as={FaChevronRight}
+                boxSize={3}
+                color="gray.300"
+                transform={isOpen ? "rotate(90deg)" : "rotate(0deg)"}
+                transition="transform 0.2s"
+              />
             </Box>
-          </Link>
+            <Collapse in={isOpen} animateOpacity>
+              <VStack align="stretch" gap={1} mt={2} mb={1}>
+                {group.items.map(item => {
+                  const isActive =
+                    location.pathname === item.path ||
+                    (item.label === "Personal Information" && location.pathname === "/student/profile")
+                  return (
+                    <Link key={item.label} to={item.path}>
+                      <Box
+                        px={6}
+                        py={2}
+                        ml={6}
+                        mr={2}
+                        borderRadius="md"
+                        bg={isActive ? "#FDE74C" : "transparent"}
+                        color={isActive ? "#1a202c" : "#fbfff1"}
+                        fontWeight={isActive ? "bold" : "medium"}
+                        display="flex"
+                        alignItems="center"
+                        gap={3}
+                        role="group"
+                        _hover={{ bgGradient: "linear(to-r, #E5E7EB, #F3F4F6)", color: "#1a202c" }}
+                        transition="all 0.2s"
+                      >
+                        <Icon
+                          as={item.icon}
+                          boxSize={3}
+                          color={isActive ? "#1a202c" : "#E5E9EC"}
+                          _groupHover={{ color: "#000000" }}
+                        />
+                        <Text fontSize="sm" flex={1} _groupHover={{ color: "#000000" }}>
+                          {item.label}
+                        </Text>
+                      </Box>
+                    </Link>
+                  )
+                })}
+              </VStack>
+            </Collapse>
+          </Box>
         )
       })}
     </VStack>
@@ -119,20 +233,23 @@ export const StudentProfileLayout = ({ children }) => {
           <Heading size="md" color="white" mt={1} display={{ base: "none", md: "block" }}>Carv U</Heading>
         </HStack>
         
-        {/* Right: Nav + Notifications + Search + Logout */}
         <HStack spacing={4} align="center">
           <HStack 
             spacing={4} 
             display={{ base: "none", md: "flex" }}
           >
-            <Button 
-              variant="ghost" 
-              color="white" 
-              _hover={{ bg: "whiteAlpha.200" }}
+            <Button
               as={Link}
               to="/student-dashboard"
+              variant="ghost"
               size="sm"
-              fontWeight="medium"
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname === "/student-dashboard" ? "#FDE74C" : "transparent"}
+              color={location.pathname === "/student-dashboard" ? "#FDE74C" : "white"}
+              fontWeight={location.pathname === "/student-dashboard" ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Dashboard
             </Button>
@@ -140,55 +257,74 @@ export const StudentProfileLayout = ({ children }) => {
               as={Link}
               to="/student/profile/personal"
               variant="ghost"
-              color="white"
-              _hover={{ bg: "whiteAlpha.200" }}
               size="sm"
-              fontWeight="medium"
-              bg={showSidebar ? "whiteAlpha.200" : "transparent"}
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname.startsWith("/student/profile") ? "#FDE74C" : "transparent"}
+              color={location.pathname.startsWith("/student/profile") ? "#FDE74C" : "white"}
+              fontWeight={location.pathname.startsWith("/student/profile") ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Profile
             </Button>
-            <Button 
-              variant="ghost" 
-              color="white" 
-              _hover={{ bg: "whiteAlpha.200" }}
+            <Button
               as={Link}
               to="/student/placements/feed"
+              variant="ghost"
               size="sm"
-              fontWeight="medium"
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname === "/student/placements/feed" ? "#FDE74C" : "transparent"}
+              color={location.pathname === "/student/placements/feed" ? "#FDE74C" : "white"}
+              fontWeight={location.pathname === "/student/placements/feed" ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Placement Drives
             </Button>
-            <Button 
-              variant="ghost" 
-              color="white" 
-              _hover={{ bg: "whiteAlpha.200" }}
+            <Button
               as={Link}
               to="/student/placements/offers"
+              variant="ghost"
               size="sm"
-              fontWeight="medium"
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname === "/student/placements/offers" ? "#FDE74C" : "transparent"}
+              color={location.pathname === "/student/placements/offers" ? "#FDE74C" : "white"}
+              fontWeight={location.pathname === "/student/placements/offers" ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Job Offers
             </Button>
-            <Button 
-              variant="ghost" 
-              color="white" 
-              _hover={{ bg: "whiteAlpha.200" }}
+            <Button
               as={Link}
               to="/student/placements/events"
+              variant="ghost"
               size="sm"
-              fontWeight="medium"
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname === "/student/placements/events" ? "#FDE74C" : "transparent"}
+              color={location.pathname === "/student/placements/events" ? "#FDE74C" : "white"}
+              fontWeight={location.pathname === "/student/placements/events" ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Events
             </Button>
-            <Button 
-              variant="ghost" 
-              color="white" 
-              _hover={{ bg: "whiteAlpha.200" }}
+            <Button
               as={Link}
               to="/student/placements/policy"
+              variant="ghost"
               size="sm"
-              fontWeight="medium"
+              borderRadius={0}
+              borderBottomWidth="2px"
+              borderColor={location.pathname === "/student/placements/policy" ? "#FDE74C" : "transparent"}
+              color={location.pathname === "/student/placements/policy" ? "#FDE74C" : "white"}
+              fontWeight={location.pathname === "/student/placements/policy" ? "semibold" : "medium"}
+              _hover={{ bg: "transparent", color: "#FDE74C" }}
+              px={1}
             >
               Policy
             </Button>
@@ -248,13 +384,12 @@ export const StudentProfileLayout = ({ children }) => {
       </Flex>
 
       <Flex>
-        {/* Persistent Sidebar (only for profile pages) */}
         {showSidebar && (
           <Box 
             w="280px" 
-            bg="white" 
+            bg="#3c3744" 
             borderRight="1px solid" 
-            borderColor="gray.200"
+            borderColor="#E5E9EC"
             h="calc(100vh - 60px)" 
             position="sticky" 
             top="60px"
@@ -268,15 +403,10 @@ export const StudentProfileLayout = ({ children }) => {
           </Box>
         )}
 
-        {/* Mobile Sidebar Drawer (optional, still keeping it for mobile access if needed, but triggered differently? 
-            Currently no mobile menu button for sidebar. 
-            Maybe we should add one if we are on profile page on mobile.
-            For now, following desktop instruction primarily.) 
-        */}
-
-        {/* Main Content */}
-        <Box flex={1} p={8} maxW={showSidebar ? "calc(100% - 280px)" : "container.xl"} mx="auto">
-           {children}
+        <Box flex={1} p={8}>
+          <Box maxW="960px" mx="auto">
+            {children}
+          </Box>
         </Box>
       </Flex>
     </Box>

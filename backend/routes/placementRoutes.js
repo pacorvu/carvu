@@ -7,6 +7,8 @@ const jobOfferRoutes = require('./placement/jobOfferRoutes');
 const studentRoutes = require('./placement/studentRoutes');
 const userRoutes = require('./placement/userRoutes');
 const alumniRoutes = require('./placement/alumniRoutes');
+const policyRoutes = require('./placement/policyRoutes');
+const projectRoutes = require('./placement/projectRoutes');
 
 // Mount routes
 // Note: The main server.js mounts this file at /placement
@@ -15,6 +17,8 @@ router.use('/drives', driveRoutes); // /placement/drives
 router.use('/students', studentRoutes); // /placement/students
 router.use('/users', userRoutes); // /placement/users
 router.use('/alumni', alumniRoutes); // /placement/alumni
+router.use('/policies', policyRoutes); // /placement/policies
+router.use('/projects', projectRoutes); // /placement/projects
 
 // Job Offers and Student Process/Offers routes were mixed in the root or specific paths
 // jobOfferRoutes handles:

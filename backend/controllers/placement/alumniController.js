@@ -126,24 +126,70 @@ const getAlumniByUsn = async (req, res) => {
     }
 };
 
+// Get students eligible for alumni promotion
+const getEligibleForPromotion = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        s.usn, 
+        s.full_name, 
+        s.school_name, 
+        p.name as program_name, 
+        s.year_of_joining,
+        p.min_duration_years,
+        (s.year_of_joining + p.min_duration_years) as expected_grad_year,
+        s.personal_email,
+        s.college_email,
+        s.phone_number,
+        (SELECT COUNT(*) FROM offers o WHERE o.usn = s.usn) as offer_count,
+        (SELECT COUNT(*) FROM placement pl WHERE pl.usn = s.usn) as placement_count
+      FROM students_personal_details s
+      JOIN programs p ON s.program_id = p.id
+      LEFT JOIN alumni a ON s.usn = a.usn
+      WHERE 
+        a.usn IS NULL 
+        AND (
+          (s.year_of_joining + p.min_duration_years) < EXTRACT(YEAR FROM CURRENT_DATE)
+          OR (
+            (s.year_of_joining + p.min_duration_years) = EXTRACT(YEAR FROM CURRENT_DATE)
+            AND EXTRACT(MONTH FROM CURRENT_DATE) >= 7
+          )
+        )
+      ORDER BY expected_grad_year ASC, s.usn ASC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching eligible alumni:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Promote students to alumni
 const promoteStudents = async (req, res) => {
+  console.log('Promote Alumni Payload:', JSON.stringify(req.body, null, 2));
+  const { students, message, graduationYear } = req.body; // students is array of { usn }
+  
+  if (!students || !Array.isArray(students) || students.length === 0) {
+      console.log('Validation Failed:', { students, isArray: Array.isArray(students), length: students?.length });
+      return res.status(400).json({ error: "No students selected for promotion" });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { students, message, graduationYear } = req.body; // students is array of { usn }
 
     const results = [];
     const errors = [];
     const currentYear = new Date().getFullYear();
 
     // Get Role IDs
-    const alumniRoleRes = await client.query("SELECT id FROM roles WHERE name='alumni'");
-    const studentRoleRes = await client.query("SELECT id FROM roles WHERE name='student'");
+    const alumniRoleRes = await client.query("SELECT id FROM roles WHERE LOWER(name)='alumni'");
+    // const studentRoleRes = await client.query("SELECT id FROM roles WHERE LOWER(name)='student'");
     
-    if (!alumniRoleRes.rows.length) throw new Error("Alumni role not found");
+    if (!alumniRoleRes.rows.length) throw new Error("Alumni role not found in database");
     const alumniRoleId = alumniRoleRes.rows[0].id;
-    const studentRoleId = studentRoleRes.rows[0]?.id;
+    // const studentRoleId = studentRoleRes.rows[0]?.id; // Not strictly needed if we just grab any login for the USN
 
     for (const student of students) {
         const { usn } = student;
@@ -156,49 +202,48 @@ const promoteStudents = async (req, res) => {
 
             if (!personalEmail) throw new Error(`No personal email found for ${usn}`);
 
-            // 2. Get existing password hash from student login
-            let passwordHash = null;
-            if (studentRoleId) {
-                const loginRes = await client.query(`SELECT password_hash FROM user_login WHERE usn = $1 AND role_id = $2`, [usn, studentRoleId]);
-                if (loginRes.rows.length) {
-                    passwordHash = loginRes.rows[0].password_hash;
-                }
+            // 2. Get existing password hash from ANY existing login for this USN
+            const loginRes = await client.query(`SELECT password_hash FROM user_login WHERE usn = $1 LIMIT 1`, [usn]);
+            
+            if (!loginRes.rows.length) {
+                throw new Error(`No existing login/password found for ${usn}`);
             }
+            const passwordHash = loginRes.rows[0].password_hash;
 
-            if (!passwordHash) {
-                // If no student login/password, we can't reuse it. 
-                // Option: Generate random, or fail. 
-                // For now, we'll error out as per requirement "same password which they kept as student"
-                throw new Error(`No existing student login/password found for ${usn}`);
-            }
+            // 3. Convert Existing Logins to Alumni Role and Update Email
+            // We update the existing record since USN is unique in user_login
+            await client.query(
+                'UPDATE user_login SET role_id = $1, mail = $3 WHERE usn = $2', 
+                [alumniRoleId, usn, personalEmail]
+            );
 
-            // 3. Create Alumni Login (if not exists)
-            const existingLogin = await client.query('SELECT id FROM user_login WHERE mail = $1', [personalEmail]);
-            if (!existingLogin.rows.length) {
+            /* 
+            // Previous logic tried to insert a new row, but USN is unique
+            const existingPersonalLogin = await client.query('SELECT id FROM user_login WHERE mail = $1', [personalEmail]);
+            
+            if (!existingPersonalLogin.rows.length) {
                  await client.query(
                     'INSERT INTO user_login (usn, mail, role_id, password_hash, is_active) VALUES ($1, $2, $3, $4, true)',
                     [usn, personalEmail, alumniRoleId, passwordHash]
                 );
             } else {
-                // Check if it is already an alumni login?
-                const ex = existingLogin.rows[0];
-                // Optional: Update role if needed, but risky if it's another user.
-                // Assuming uniqueness of personal email.
+                // If login already exists for personal email, ensure it has alumni role
+                await client.query('UPDATE user_login SET role_id = $1 WHERE mail = $2', [alumniRoleId, personalEmail]);
             }
+            */
 
-            // 4. Add to Alumni Table
+            // 5. Add to Alumni Table
             const alumniCheck = await client.query('SELECT usn FROM alumni WHERE usn = $1', [usn]);
             if (!alumniCheck.rows.length) {
-                 // Try to find placement info (latest job offer)
-                 const offerRes = await client.query(`
-                    SELECT c.company_name, jo.role 
-                    FROM job_offers jo 
-                    JOIN companies c ON jo.company_id = c.id 
-                    WHERE jo.usn = $1 
-                    ORDER BY jo.created_at DESC LIMIT 1`, [usn]);
+                 // Try to find placement info (latest placement record)
+                 const placementRes = await client.query(`
+                    SELECT company_name, designation 
+                    FROM placement 
+                    WHERE usn = $1 
+                    ORDER BY created_at DESC LIMIT 1`, [usn]);
                  
-                 const company = offerRes.rows[0]?.company_name || '';
-                 const designation = offerRes.rows[0]?.role || '';
+                 const company = placementRes.rows[0]?.company_name || '';
+                 const designation = placementRes.rows[0]?.designation || '';
 
                  await client.query(`
                     INSERT INTO alumni (
@@ -253,9 +298,63 @@ const promoteStudents = async (req, res) => {
   }
 };
 
+// Generate Registration Code
+const generateRegistrationCode = async (req, res) => {
+    const { batch_year, institution_name, remarks, max_uses } = req.body;
+    
+    try {
+        const crypto = require('crypto');
+        // Generate a random code: ALUM-<YEAR>-<RANDOM>
+        const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const code = `ALUM-${batch_year}-${randomPart}`; 
+
+        const query = `
+            INSERT INTO alumni_registration_codes (code, batch_year, institution_name, remarks, max_uses)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `;
+        const result = await pool.query(query, [code, batch_year, institution_name, remarks, max_uses || 0]); // 0 means unlimited
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Error generating code:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+// Get Registration Codes
+const getRegistrationCodes = async (req, res) => {
+    try {
+        const query = 'SELECT * FROM alumni_registration_codes ORDER BY created_at DESC';
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching codes:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+// Deactivate Code
+const deleteRegistrationCode = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // We do a soft delete by setting is_active to false
+        const query = 'UPDATE alumni_registration_codes SET is_active = false WHERE id = $1 RETURNING *';
+        const result = await pool.query(query, [id]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Code not found' });
+        res.json({ message: 'Code deactivated successfully', code: result.rows[0] });
+    } catch (err) {
+        console.error('Error deleting code:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
 module.exports = {
   getAllAlumni,
   addAlumni,
   getAlumniByUsn,
-  promoteStudents
+  promoteStudents,
+  getEligibleForPromotion,
+  generateRegistrationCode,
+  getRegistrationCodes,
+  deleteRegistrationCode
 };

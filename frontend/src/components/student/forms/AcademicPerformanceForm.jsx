@@ -13,11 +13,89 @@ import {
   Select,
   Text,
   Flex,
-  Collapse
+  Collapse,
+  useToast
 } from "@chakra-ui/react";
-import { FaPlus, FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaUpload, FaFile } from "react-icons/fa";
+import { useAuth } from "../../../context/AuthContext";
 
-const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEditing }) => {
+const AcademicsFileInput = ({ isEditing, value, onChange, onFileSelect, index }) => {
+  const toast = useToast()
+  const inputId = `academics-file-upload-${index}`
+  
+  const handleFileChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "File size must be less than 5MB",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        })
+        return
+      }
+
+      // Check file type
+      if (!['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a PDF or Image file",
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        })
+        return
+      }
+
+      if (onFileSelect) {
+        onFileSelect(file)
+        // We don't set the URL here immediately, we show the file name as pending or just let the user know
+        toast({
+          title: "File selected",
+          description: `${file.name} selected for upload. Click Save Changes to upload.`,
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        })
+      }
+    }
+  }
+
+  const fileName = value ? (typeof value === 'string' ? value.split('/').pop() : 'File Uploaded') : ''
+
+  return (
+    <Box>
+        {isEditing ? (
+            <Flex align="center" gap={2}>
+                <Button as="label" htmlFor={inputId} cursor="pointer" size="sm" leftIcon={<FaUpload />} colorScheme="blue" variant="outline" type="button">
+                    Upload Marksheet
+                    <input
+                        id={inputId}
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                    />
+                </Button>
+                {fileName && <Text fontSize="xs" noOfLines={1}>{fileName}</Text>}
+            </Flex>
+        ) : (
+            value ? (
+                <Button size="sm" leftIcon={<FaFile />} as="a" href={value} target="_blank" variant="link" colorScheme="blue">
+                    View Marksheet
+                </Button>
+            ) : (
+                <Text fontSize="sm" color="gray.500">No marksheet uploaded</Text>
+            )
+        )}
+    </Box>
+  )
+}
+
+const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEditing, onFileSelect, takenSemesters, maxAllowedSemester }) => {
   const handleChange = (field, value) => {
     // Handle number fields
     if (['academicYear', 'semester', 'sgpa', 'closedBacklogs', 'liveBacklogs'].includes(field)) {
@@ -54,6 +132,16 @@ const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEdi
       return "";
   };
 
+  const availableOptions = [1, 2, 3, 4, 5, 6, 7, 8].filter(sem => {
+      // Condition 1: Must be less than current semester (past results)
+      const isPast = sem < maxAllowedSemester;
+      
+      // Condition 2: Must not be already taken (unless it's the current item's value)
+      const isAvailable = !takenSemesters.has(sem) || sem === Number(item.semester);
+      
+      return isPast && isAvailable;
+  });
+
   return (
     <Box border="1px solid" borderColor="gray.200" borderRadius="xl" p={4} bg="white">
       <Flex justify="space-between" align="center" mb={isOpen ? 4 : 0} cursor="pointer" onClick={onToggle}>
@@ -78,7 +166,7 @@ const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEdi
                 isDisabled={!isEditing}
                 placeholder="Select Semester"
               >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                {availableOptions.map(sem => (
                     <option key={sem} value={sem}>{sem}</option>
                 ))}
               </Select>
@@ -130,12 +218,13 @@ const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEdi
             </FormControl>
 
             <FormControl>
-                <FormLabel>Result Link (URL)</FormLabel>
-                <Input 
+                <FormLabel>Result Marksheet</FormLabel>
+                <AcademicsFileInput 
+                    isEditing={isEditing}
                     value={getLinkValue(item.resultUploadLink)}
-                    onChange={(e) => handleChange("resultUploadLink", e.target.value)}
-                    isDisabled={!isEditing}
-                    placeholder="https://..."
+                    onChange={(url) => handleChange("resultUploadLink", url ? [url] : [])}
+                    onFileSelect={onFileSelect ? (file) => onFileSelect(index, file) : undefined}
+                    index={index}
                 />
             </FormControl>
           </SimpleGrid>
@@ -145,7 +234,7 @@ const SemesterItem = ({ item, onChange, onDelete, index, isOpen, onToggle, isEdi
   )
 }
 
-export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing }) => {
+export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing, onFileSelect, personalDetails }) => {
   const bg = useColorModeValue("white", "gray.50");
   const formData = data || {};
   // Ensure we work with an array. The controller expects the root object to be the array or contain it.
@@ -179,6 +268,9 @@ export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing }) => {
   
   const academics = Array.isArray(formData) ? formData : (formData.academics || []);
   
+  const currentSemester = personalDetails?.currentSemester ? Number(personalDetails.currentSemester) : 9;
+  const takenSemesters = new Set(academics.map(a => Number(a.semester)).filter(Boolean));
+
   const [openIndex, setOpenIndex] = React.useState(null);
 
   const handleUpdate = (newAcademics) => {
@@ -238,6 +330,9 @@ export const AcademicPerformanceForm = ({ data = {}, onUpdate, isEditing }) => {
             isOpen={openIndex === index}
             onToggle={() => setOpenIndex(openIndex === index ? null : index)}
             isEditing={isEditing}
+            onFileSelect={onFileSelect}
+            takenSemesters={takenSemesters}
+            maxAllowedSemester={currentSemester}
           />
         ))}
         {academics.length === 0 && (

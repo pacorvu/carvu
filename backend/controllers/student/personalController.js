@@ -1,5 +1,7 @@
 const { pool } = require('../../config/db');
 const { mapData } = require('./utils');
+const fs = require('fs');
+const path = require('path');
 
 const getPersonal = async (req, res) => {
   try {
@@ -62,7 +64,7 @@ const updatePersonal = async (req, res) => {
         'full_name', 'date_of_birth', 'blood_group', 'marital_status', 
         'specially_abled', 'profile_image', 'school_name', 'year_of_joining', 
         'program_id', 'specialization_id', 'major_id', 'minor_id', 
-        'is_profile_locked', 'gender', 'languages'
+        'is_profile_locked', 'gender', 'languages', 'section'
     ];
     
     Object.keys(dbData).forEach(key => {
@@ -79,33 +81,54 @@ const updatePersonal = async (req, res) => {
         }
     }
     
-    // Check if record exists
-    const check = await pool.query('select usn from students_personal_details where usn = $1', [usn]);
+    const existingRes = await pool.query('select usn, profile_image from students_personal_details where usn = $1', [usn]);
+    const hasExisting = existingRes.rows.length > 0;
+    const oldProfileImage = existingRes.rows[0]?.profile_image || null;
+
+    let dbResult;
     
-    if (check.rows.length === 0) {
-        // Insert
+    if (!hasExisting) {
         const keys = Object.keys(dbData);
         const values = Object.values(dbData);
-        // Add USN
         keys.push('usn');
         values.push(usn);
         
         const query = `insert into students_personal_details (${keys.join(', ')}) values (${keys.map((_, i) => `$${i+1}`).join(', ')}) returning *`;
-        const result = await pool.query(query, values);
-        res.json(mapData('personal', result.rows[0], 'fromDb'));
+        dbResult = await pool.query(query, values);
     } else {
-        // Update
         const keys = Object.keys(dbData);
         const values = Object.values(dbData);
         
-        if (keys.length === 0) return res.json({}); // Nothing to update
+        if (keys.length === 0) return res.json({});
 
         const setClause = keys.map((k, i) => `${k} = $${i+1}`).join(', ');
         const query = `update students_personal_details set ${setClause} where usn = $${keys.length + 1} returning *`;
         
-        const result = await pool.query(query, [...values, usn]);
-        res.json(mapData('personal', result.rows[0], 'fromDb'));
+        dbResult = await pool.query(query, [...values, usn]);
     }
+
+    const updatedRow = dbResult.rows[0];
+
+    try {
+      const newProfileImage = dbData.profile_image;
+      if (oldProfileImage && newProfileImage && oldProfileImage !== newProfileImage) {
+        let relativePath = oldProfileImage;
+        const uploadsIndex = oldProfileImage.indexOf('/uploads/');
+        if (uploadsIndex !== -1) {
+          relativePath = oldProfileImage.substring(uploadsIndex);
+        }
+        const absolutePath = path.join(__dirname, '..', '..', 'public', relativePath.replace(/^\/+/, ''));
+        fs.unlink(absolutePath, (err) => {
+          if (err && err.code !== 'ENOENT') {
+            console.error('Failed to delete old profile image:', err.message);
+          }
+        });
+      }
+    } catch (cleanupError) {
+      console.error('Error while cleaning up old profile image:', cleanupError.message);
+    }
+
+    res.json(mapData('personal', updatedRow, 'fromDb'));
   } catch (e) {
     console.error(`Update personal error: ${e.message}`);
     res.status(500).json({ error: e.message });

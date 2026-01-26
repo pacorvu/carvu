@@ -3,10 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const nodemailer = require('nodemailer');
+const path = require('path');
 const { pool, supabase } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const placementRoutes = require('./routes/placementRoutes');
+const { initScheduler } = require('./jobs/scheduler');
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -27,6 +29,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -447,6 +451,7 @@ app.listen(PORT, () => {
         console.error(`Storage connection failed: ${e.message}`);
       }
       await ensureUserLoginTrigger();
+      await initScheduler();
     } catch (e) {
       console.error(`Startup initialization failed: ${e.message}`);
     }
