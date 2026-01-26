@@ -45,8 +45,12 @@ app.use('/auth', authRoutes);
 app.use('/student', studentRoutes);
 app.use('/placement', placementRoutes);
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 // Serve static files from frontend build
-const frontendPath = path.join(__dirname, '../frontend/dist');
+const frontendPath = path.join(__dirname, '../frontend/build');
 app.use(express.static(frontendPath));
 
 // Handle client-side routing, return all requests to index.html
