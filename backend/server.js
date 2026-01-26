@@ -45,6 +45,15 @@ app.use('/auth', authRoutes);
 app.use('/student', studentRoutes);
 app.use('/placement', placementRoutes);
 
+// Serve static files from frontend build
+const frontendPath = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendPath));
+
+// Handle client-side routing, return all requests to index.html
+app.get(/(.*)/, (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
+
 // Verify SMTP Connection
 const verifySmtp = async () => {
   const smtpUser = process.env.SMTP_EMAIL;
