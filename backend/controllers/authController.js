@@ -8,6 +8,23 @@ function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex');
 function uuid() { return crypto.randomUUID(); }
 
 let loginTableCache = null;
+let columnsCache = {};
+
+async function getColumns(tableName) {
+  if (columnsCache[tableName]) return columnsCache[tableName];
+  try {
+    const colsRes = await pool.query(
+      "select column_name from information_schema.columns where table_schema='public' and table_name=$1",
+      [tableName]
+    );
+    const cols = colsRes.rows.map(r => r.column_name);
+    columnsCache[tableName] = cols;
+    return cols;
+  } catch {
+    return [];
+  }
+}
+
 async function getLoginTable() {
   if (loginTableCache) return loginTableCache;
   try {
@@ -224,14 +241,21 @@ const login = async (req, res) => {
 };
 
 const refresh = async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const raw = req.cookies?.refresh_token;
-    if (!raw) {
-      console.warn('[Auth] Refresh failed: No refresh_token cookie present in request');
-      return res.status(401).json({ error: 'no refresh cookie' });
-    }
+  const raw = req.cookies?.refresh_token;
+  if (!raw) {
+    console.warn('[Auth] Refresh failed: No refresh_token cookie present in request');
+    return res.status(401).json({ error: 'no refresh cookie' });
+  }
 
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (e) {
+    console.error('Database connection failed in refresh:', e.message);
+    return res.status(503).json({ error: 'Service temporarily unavailable' });
+  }
+
+  try {
     const hash = sha256(raw);
     const loginTable = await getLoginTable();
 
