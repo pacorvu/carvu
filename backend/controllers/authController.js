@@ -156,33 +156,61 @@ function clearRefreshCookie(res) {
 }
 
 const login = async (req, res) => {
+  console.log('[Auth] Login request received');
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    console.log(`[Auth] Attempting login for: ${email}`);
+    if (!email || !password) {
+      console.log('[Auth] Missing email or password');
+      return res.status(400).json({ error: 'email and password required' });
+    }
+    
+    console.log('[Auth] Finding user by email...');
     const user = await findUserByEmail(email);
+    console.log(`[Auth] User found: ${user ? 'Yes' : 'No'}`);
+    
     if (!user) return res.status(401).json({ error: 'invalid credentials' });
+    
     const roleName = user.role || user.role_name;
     const provided = String(email).toLowerCase();
     const mailId = (user.mail || user.email || '').toLowerCase();
+    
+    console.log(`[Auth] Role: ${roleName}, Mail: ${mailId}`);
+
     if (roleName === 'student') {
       if (!mailId || provided !== mailId || !provided.endsWith('@rvu.edu.in')) {
+        console.log('[Auth] Student email mismatch or invalid domain');
         return res.status(401).json({ error: 'Use RVU email (@rvu.edu.in) to login' });
       }
     } else if (roleName === 'alumni') {
       // Alumni can login with any email; no domain restriction
     }
+    
     let ok = false;
-    if (user.password_hash) ok = await bcrypt.compare(password, user.password_hash);
-    else if (user.password) ok = password === user.password;
+    if (user.password_hash) {
+      console.log('[Auth] Verifying hash...');
+      ok = await bcrypt.compare(password, user.password_hash);
+    } else if (user.password) {
+      console.log('[Auth] Verifying plain password...');
+      ok = password === user.password;
+    }
+    
+    console.log(`[Auth] Password verified: ${ok}`);
+    
     if (!ok) return res.status(401).json({ error: 'invalid credentials' });
+    
     const access = signAccess(user);
     const r = newRefresh();
     const expDate = new Date(Date.now() + (parseTtl(process.env.JWT_REFRESH_EXPIRE || '30d')));
+    
+    console.log('[Auth] Inserting refresh token...');
     await pool.query(
       'insert into auth_refresh_tokens (user_login_id, token_hash, jti, expires_at, user_agent, ip) values ($1,$2,$3,$4,$5,$6)',
       [user.id, r.hash, r.jti, expDate.toISOString(), req.headers['user-agent'] || null, req.ip || null]
     );
+    
     setRefreshCookie(res, r.raw, expDate);
+    console.log('[Auth] Login successful, sending response');
     res.json({ access, user: { email: user.mail || user.email, role_id: user.role_id, usn: user.usn } });
   } catch (e) {
     console.error(`Login error: ${e.message}`);
