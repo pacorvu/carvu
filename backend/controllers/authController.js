@@ -247,6 +247,8 @@ const refresh = async (req, res) => {
     return res.status(401).json({ error: 'no refresh cookie' });
   }
 
+  const hash = sha256(raw);
+
   let client;
   try {
     client = await pool.connect();
@@ -256,7 +258,6 @@ const refresh = async (req, res) => {
   }
 
   try {
-    const hash = sha256(raw);
     const loginTable = await getLoginTable();
 
     await client.query('begin');
