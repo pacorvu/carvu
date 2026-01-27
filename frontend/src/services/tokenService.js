@@ -21,7 +21,8 @@ export const getHeaders = () => {
 
 export const refreshAccessToken = async () => {
   try {
-    const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
+    const API_URL = import.meta.env.VITE_BACKEND_URL || '';
+    const resp = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include'

@@ -85,7 +85,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/login`, {
+      const API_URL = import.meta.env.VITE_BACKEND_URL || '';
+      const resp = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -115,7 +116,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/logout`, {
+      const API_URL = import.meta.env.VITE_BACKEND_URL || '';
+      await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
       });

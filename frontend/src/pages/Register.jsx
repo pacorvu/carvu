@@ -320,7 +320,8 @@ const StudentRegister = () => {
     if (!otp) { setError("Enter OTP"); return; }
     setLoading(true)
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/register/verify-otp`, {
+      const API_URL = import.meta.env.VITE_BACKEND_URL || '';
+      const res = await fetch(`${API_URL}/auth/register/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usn: String(formData.usn).toUpperCase(), email: String(formData.rvuEmail).toLowerCase(), otp })

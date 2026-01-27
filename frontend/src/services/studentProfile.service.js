@@ -1,6 +1,6 @@
 import { getHeaders, refreshAccessToken, getAccessToken } from './tokenService';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const authFetch = async (url, options = {}) => {
   const doFetch = () => {
