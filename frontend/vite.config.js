@@ -6,5 +6,14 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'build',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'framer-motion'],
+          charts: ['chart.js', 'react-chartjs-2'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   }
 })
