@@ -38,6 +38,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+// routes
 app.use('/auth', authRoutes);
 app.use('/student', studentRoutes);
 app.use('/placement', placementRoutes);
