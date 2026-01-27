@@ -243,7 +243,7 @@ const refresh = async (req, res) => {
        left join roles r on r.id = ul.role_id
        where art.token_hash=$1 and art.revoked_at is null and art.expires_at > now() 
        limit 1
-       for update`,
+       for update of art`,
       [hash]
     );
     if (!q.rows.length) {

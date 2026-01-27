@@ -44,7 +44,7 @@ const getFullProfile = async (req, res) => {
     const isAuthorized = allowedRoles.includes(userRole);
 
     console.log(
-      `[getFullProfile] Access check: User=${req.user?.id}, Role=${userRole}, TargetUSN=${targetUsn}, Owner=${isOwner}, Authorized=${isAuthorized}`
+      `[getFullProfile] Access check: User=${req.user?.sub}, Role=${userRole}, TargetUSN=${targetUsn}, Owner=${isOwner}, Authorized=${isAuthorized}`
     );
 
     if (!isOwner && !isAuthorized) {
