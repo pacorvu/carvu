@@ -135,12 +135,17 @@ function parseTtl(s) {
 function refreshCookieOptions() {
   const sameSiteRaw = String(process.env.COOKIE_SAMESITE || 'lax').toLowerCase().trim();
   const sameSite = (sameSiteRaw === 'none' || sameSiteRaw === 'lax' || sameSiteRaw === 'strict') ? sameSiteRaw : 'lax';
+  
+  // In production (Render), we must use secure: true.
+  // When 'trust proxy' is set, req.secure will be true if the original request was https.
+  const isProduction = process.env.NODE_ENV === 'production';
   const secureRaw = String(process.env.COOKIE_SECURE || '').toLowerCase().trim();
-  const secure = secureRaw === 'true' || process.env.NODE_ENV === 'production';
+  const secure = secureRaw === 'true' || isProduction;
+
   return {
     httpOnly: true,
     sameSite,
-    secure,
+    secure, 
     path: '/',
   };
 }

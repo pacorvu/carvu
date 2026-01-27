@@ -14,6 +14,9 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const app = express();
 
+// Trust proxy for secure cookies behind Render/Nginx load balancer
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
